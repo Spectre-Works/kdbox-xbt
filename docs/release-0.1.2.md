@@ -1,4 +1,4 @@
-# 0.1.2 candidate
+# 0.1.2 prerelease
 
 - Retry transient SSH connection failures with a fresh connection and bounded backoff.
 - Give slow SSH servers more time to send their greeting.

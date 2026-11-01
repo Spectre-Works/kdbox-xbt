@@ -4,7 +4,7 @@ A local installer and replacement dashboard for the original Goldshell KDBox,
 with BLAKE2b mining, cooling controls, and recoverable tuning trials.
 
 **Experimental preview.** The adapter supports the original KDBox, board
-**MCB_V5_4**, ARMv7. The **0.1.1 prerelease supports 11 tested firmware versions**; see the
+**MCB_V5_4**, ARMv7. The **0.1.2 prerelease supports 11 tested firmware versions**; see the
 [firmware compatibility table](docs/firmware-compatibility.md) for additional
 supported versions and test results. Firmware 2.2.4 and unsupported hardware are rejected.
 This installs reversible files over SSH; it does not flash a complete firmware
@@ -23,9 +23,9 @@ Back up your miner before making changes. Automatic rollback and thermal checks
 reduce risk but cannot guarantee recovery or prevent every failure. This software
 is provided without warranty; see [LICENSE](LICENSE).
 
-## 0.1.2 candidate
+## What's new in 0.1.2
 
-The next version adds bounded retries for SSH greetings and read-only device
+This version adds bounded retries for SSH greetings and read-only device
 checks, explicit connection progress, verified backup/file transfers, and a
 startup check before reporting installation success. The controller retries temporary
 read failures once and preserves the original safety-stop details across restarts.
@@ -34,12 +34,10 @@ Wrong passwords and changed
 SSH identities stop immediately. Installation writes, login requests and reboot
 commands are never automatically replayed after a lost connection.
 
-The published download below remains 0.1.1 until candidate validation is complete.
-
 ## Use it
 
 1. Put your computer and miner on the same trusted LAN.
-2. Download the Windows or Linux build from the [0.1.1 prerelease](https://github.com/connorslab/paperclip-flasher/releases/tag/v0.1.1),
+2. Download the Windows or Linux build from the [0.1.2 prerelease](https://github.com/connorslab/paperclip-flasher/releases/tag/v0.1.2),
    extract the archive, and open `PaperclipFlasher`. Archive checksums are included
    in `SHA256SUMS.txt`. Linux may require marking the file executable.
 3. Enter the miner's IP, SSH password, and dashboard password.

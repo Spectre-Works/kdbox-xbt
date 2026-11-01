@@ -480,7 +480,7 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 					c.halted = false
 					c.lastGood = time.Now()
-					c.message = "Resuming confirmed settings"
+					c.message = "Confirmed settings restored"
 					_ = exec.Command("/bin/sh", "-c", "kill -CONT $(pidof xminerd)").Run()
 					err = c.reapplyAlgorithm()
 					if err != nil {
