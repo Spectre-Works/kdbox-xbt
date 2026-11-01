@@ -286,6 +286,8 @@ class Device:
     def _install(self, root, password, backup_dir, progress=print):
         root = Path(root)
         info = self.inspect()
+        if self.command('test -f /usr/config/paperclip/halted.json && echo halted; true').strip() == 'halted':
+            raise RuntimeError('The miner has an active safety stop. Inspect its cooling and resolve the stop in the dashboard before installing. No installation files were changed.')
         binary = (root / 'build/paperclip-controller').read_bytes()
         if binary[:4] != b'\x7fELF':
             raise RuntimeError('Missing ARM controller build')

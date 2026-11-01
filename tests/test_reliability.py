@@ -89,3 +89,11 @@ class Reliability(unittest.TestCase):
             d.client.get_transport().open_channel.assert_called_once_with(
                 'direct-tcpip', ('127.0.0.1', port), ('127.0.0.1', 0), timeout=10)
             connection.return_value.close.assert_called_once()
+
+    def test_existing_safety_stop_blocks_install_before_backup_or_writes(self):
+        d=Device.__new__(Device);d.inspect=Mock(return_value={'firmware':'2.2.3'})
+        d.command=Mock(return_value='halted');d.backup=Mock();d.write=Mock()
+        with self.assertRaisesRegex(RuntimeError,'active safety stop'):
+            d.install('nonexistent-root','secret','backup')
+        d.backup.assert_not_called();d.write.assert_not_called()
+        self.assertFalse(d.installation_started)
