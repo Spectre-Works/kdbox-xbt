@@ -4,7 +4,7 @@ A local installer and replacement dashboard for the original Goldshell KDBox,
 with BLAKE2b mining, cooling controls, and recoverable tuning trials.
 
 **Experimental preview.** The adapter supports the original KDBox, board
-**MCB_V5_4**, ARMv7. The **0.1.1 prerelease supports 11 tested firmware versions**; see the
+**MCB_V5_4**, ARMv7. The **0.1.2 prerelease supports 11 tested firmware versions**; see the
 [firmware compatibility table](docs/firmware-compatibility.md) for additional
 supported versions and test results. Firmware 2.2.4 and unsupported hardware are rejected.
 This installs reversible files over SSH; it does not flash a complete firmware
@@ -23,10 +23,21 @@ Back up your miner before making changes. Automatic rollback and thermal checks
 reduce risk but cannot guarantee recovery or prevent every failure. This software
 is provided without warranty; see [LICENSE](LICENSE).
 
+## What's new in 0.1.2
+
+This version adds bounded retries for SSH greetings and read-only device
+checks, explicit connection progress, verified backup/file transfers, and a
+startup check before reporting installation success. The controller retries temporary
+read failures once and preserves the original safety-stop details across restarts.
+Resuming a stopped miner also restores its existing algorithm configuration.
+Wrong passwords and changed
+SSH identities stop immediately. Installation writes, login requests and reboot
+commands are never automatically replayed after a lost connection.
+
 ## Use it
 
 1. Put your computer and miner on the same trusted LAN.
-2. Download the Windows or Linux build from the [0.1.1 prerelease](https://github.com/connorslab/paperclip-flasher/releases/tag/v0.1.1),
+2. Download the Windows or Linux build from the [0.1.2 prerelease](https://github.com/connorslab/paperclip-flasher/releases/tag/v0.1.2),
    extract the archive, and open `PaperclipFlasher`. Archive checksums are included
    in `SHA256SUMS.txt`. Linux may require marking the file executable.
 3. Enter the miner's IP, SSH password, and dashboard password.
@@ -128,3 +139,19 @@ On PowerShell set those variables with `$env:GOOS='linux'` (and likewise for the
 other variables). On Linux prefix the build command with the four assignments.
 The workflow builds Windows and Linux installer previews without publishing a
 release. See [architecture and recovery](docs/architecture.md).
+
+## Connection troubleshooting
+
+- **SSH greeting timed out:** verify the IP opens the miner dashboard and let it
+  finish booting. The 0.1.2 candidate makes up to four connection attempts with a
+  30-second greeting timeout. If those fail, power-cycle the miner once and retry.
+- **Password rejected:** enter the SSH root password for the installed firmware,
+  not the dashboard password. Authentication failures are not retried.
+- **SSH unavailable:** provide the dashboard password to enable SSH on a supported
+  model. A slow greeting alone does not trigger changes to SSH settings.
+- **Installation interrupted:** keep the miner powered on. The installer shows
+  the recovery backup location; inspect the dashboard before choosing recovery.
+  An interrupted operation may have applied some changes even if no reply arrived.
+
+Do not upgrade stock firmware to solve a connection error. Never send passwords,
+backup archives, or private pool credentials with a support request.
