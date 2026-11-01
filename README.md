@@ -23,6 +23,16 @@ Back up your miner before making changes. Automatic rollback and thermal checks
 reduce risk but cannot guarantee recovery or prevent every failure. This software
 is provided without warranty; see [LICENSE](LICENSE).
 
+## 0.1.2 candidate
+
+The next version adds bounded retries for SSH greetings and read-only device
+checks, explicit connection progress, verified backup/file transfers, and a
+startup check before reporting installation success. Wrong passwords and changed
+SSH identities stop immediately. Installation writes, login requests and reboot
+commands are never automatically replayed after a lost connection.
+
+The published download below remains 0.1.1 until candidate validation is complete.
+
 ## Use it
 
 1. Put your computer and miner on the same trusted LAN.
@@ -128,3 +138,19 @@ On PowerShell set those variables with `$env:GOOS='linux'` (and likewise for the
 other variables). On Linux prefix the build command with the four assignments.
 The workflow builds Windows and Linux installer previews without publishing a
 release. See [architecture and recovery](docs/architecture.md).
+
+## Connection troubleshooting
+
+- **SSH greeting timed out:** verify the IP opens the miner dashboard and let it
+  finish booting. The 0.1.2 candidate makes up to four connection attempts with a
+  30-second greeting timeout. If those fail, power-cycle the miner once and retry.
+- **Password rejected:** enter the SSH root password for the installed firmware,
+  not the dashboard password. Authentication failures are not retried.
+- **SSH unavailable:** provide the dashboard password to enable SSH on a supported
+  model. A slow greeting alone does not trigger changes to SSH settings.
+- **Installation interrupted:** keep the miner powered on. The installer shows
+  the recovery backup location; inspect the dashboard before choosing recovery.
+  An interrupted operation may have applied some changes even if no reply arrived.
+
+Do not upgrade stock firmware to solve a connection error. Never send passwords,
+backup archives, or private pool credentials with a support request.

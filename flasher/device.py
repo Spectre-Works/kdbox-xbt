@@ -6,6 +6,8 @@ import ipaddress
 import json
 from pathlib import Path
 import shlex
+import socket
+import errno
 import time
 from urllib.parse import urlencode
 import urllib.request
@@ -19,6 +21,14 @@ def supported_device(info, allow_missing_board=False):
             and (info.get('mcbversion') == PROFILE['board']
                  or (allow_missing_board and 'mcbversion' not in info))
             and info.get('firmware') in PROFILE['firmwares'])
+
+
+def transient_connection_error(exc):
+    if isinstance(exc, (paramiko.AuthenticationException, paramiko.BadHostKeyException)):
+        return False
+    if isinstance(exc, (paramiko.ssh_exception.NoValidConnectionsError, socket.timeout, ConnectionError, EOFError)):
+        return True
+    return isinstance(exc, paramiko.SSHException) and 'error reading ssh protocol banner' in str(exc).lower()
 
 
 READ_ONLY_FIRMWARES = {'2.2.3'}
@@ -37,32 +47,58 @@ def startup_config(original, firmware):
 
 
 class Device:
-    def __init__(self, host, ssh_password, confirm_host, web_password=None):
-        ipaddress.ip_address(host)
-        self.host = host
-        client = self.client = paramiko.SSHClient()
+    def __init__(self, host, ssh_password, confirm_host, web_password=None, progress=lambda text: None):
+        try:
+            address = ipaddress.ip_address(host.strip())
+        except ValueError:
+            raise ValueError('Enter the miner IP only, for example 192.168.1.151. Do not include http:// or a port.') from None
+        if address.version != 4 or address.is_loopback or address.is_multicast or address.is_unspecified:
+            raise ValueError('Enter the miner’s LAN IPv4 address.')
+        if not ssh_password:
+            raise ValueError('Enter the SSH root password. This is separate from the dashboard password.')
+        self.host = host = str(address)
+        self.token = None
+        self.client = None
+        trusted = []
         class Trust(paramiko.MissingHostKeyPolicy):
             def missing_host_key(self, client, hostname, key):
                 fingerprint = 'SHA256:' + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')
-                if not confirm_host(hostname, fingerprint):
-                    raise RuntimeError('Device identity was not confirmed')
-        client.set_missing_host_key_policy(Trust())
-        try:
-            client.connect(host, username='root', password=ssh_password, timeout=10,
-                           auth_timeout=10, look_for_keys=False, allow_agent=False)
-        except paramiko.ssh_exception.NoValidConnectionsError:
-            if web_password is None:
-                raise RuntimeError('SSH is off. Enter the dashboard password to enable it.') from None
-            self.enable_ssh(host, web_password)
-            for attempt in range(5):
-                time.sleep(1)
-                try:
-                    client.connect(host, username='root', password=ssh_password, timeout=5,
-                                   auth_timeout=10, look_for_keys=False, allow_agent=False)
-                    break
-                except paramiko.ssh_exception.NoValidConnectionsError:
-                    if attempt == 4:raise RuntimeError('SSH did not start; no installation files were changed.') from None
-        self.token = None
+                if trusted and trusted[0] != fingerprint:
+                    raise RuntimeError('The miner SSH identity changed during reconnect. Stopped; verify the IP and device before trying again.')
+                if not trusted:
+                    if not confirm_host(hostname, fingerprint):
+                        raise RuntimeError('Connection canceled: miner identity was not confirmed.')
+                    trusted.append(fingerprint)
+        enabled = False
+        for attempt in range(4):
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(Trust())
+            progress(f'Connecting to {host}:22 — attempt {attempt + 1} of 4…')
+            try:
+                client.connect(host, username='root', password=ssh_password, timeout=10,
+                               banner_timeout=30, auth_timeout=15, look_for_keys=False, allow_agent=False)
+                client.get_transport().set_keepalive(15)
+                self.client = client
+                return
+            except paramiko.AuthenticationException:
+                client.close()
+                raise RuntimeError('SSH password was rejected. Check the SSH root password for this firmware; the dashboard password is different. No installation files were changed.') from None
+            except Exception as exc:
+                client.close()
+                if not transient_connection_error(exc):
+                    raise
+                if isinstance(exc, paramiko.ssh_exception.NoValidConnectionsError) and not enabled:
+                    refused = any(getattr(e, 'errno', None) in (errno.ECONNREFUSED, 10061) for e in exc.errors.values())
+                    if refused:
+                        if not web_password:
+                            raise RuntimeError('SSH is not accepting connections. Enter the dashboard password so the supported miner can enable SSH.') from None
+                        progress('Checking the model and enabling its existing SSH service…')
+                        self.enable_ssh(host, web_password)
+                        enabled = True
+                if attempt == 3:
+                    raise RuntimeError('The miner did not complete its SSH connection after four attempts. Confirm the IP opens its dashboard, let the miner finish booting, and retry. If needed, power-cycle it once. Do not upgrade firmware to fix this. No installation files were changed.') from None
+                progress('Miner not ready yet; retrying the connection…')
+                time.sleep(2 ** attempt)
 
     @staticmethod
     def enable_ssh(host, password):
@@ -105,7 +141,8 @@ class Device:
             raise RuntimeError('Could not enable SSH. Check the dashboard password and LAN connection.') from None
 
     def close(self):
-        self.client.close()
+        if self.client:
+            self.client.close()
 
     def command(self, command):
         _, out, err = self.client.exec_command(command, timeout=20)
@@ -115,8 +152,20 @@ class Device:
         return data
 
     def api(self, path, data=None):
+        # Only these read-only queries may be repeated; login and PUT can mutate state.
+        attempts = 3 if data is None and path in ('/mcb/status', '/mcb/algosetting', '/api/status') else 1
+        for attempt in range(attempts):
+            try:
+                return self._api_once(path, data)
+            except (socket.timeout, ConnectionError, EOFError, http.client.HTTPException):
+                if attempt + 1 == attempts:
+                    raise RuntimeError('The miner connection was interrupted. Read-only checks can be retried; settings and installation commands were not automatically repeated. Check the miner before retrying.') from None
+                time.sleep(attempt + 1)
+
+    def _api_once(self, path, data=None):
         # HTTP remains inside encrypted SSH and targets only the local native API.
-        channel = self.client.get_transport().open_channel('direct-tcpip', ('127.0.0.1', 80), ('127.0.0.1', 0))
+        port = 8088 if path == '/api/status' else 80
+        channel = self.client.get_transport().open_channel('direct-tcpip', ('127.0.0.1', port), ('127.0.0.1', 0), timeout=10)
         channel.settimeout(10)
         conn = http.client.HTTPConnection('127.0.0.1', timeout=10)
         conn.sock = channel
@@ -151,6 +200,10 @@ class Device:
             with s.open(remote + '.paperclip-new', 'wb') as f:
                 f.write(data)
             s.chmod(remote + '.paperclip-new', mode)
+        expected = hashlib.sha256(data).hexdigest()
+        actual = self.command('sha256sum ' + shlex.quote(remote + '.paperclip-new')).split()
+        if not actual or actual[0] != expected:
+            raise RuntimeError('File transfer verification failed. The destination file was not replaced; do not restart the miner.')
         self.command('mv ' + shlex.quote(remote + '.paperclip-new') + ' ' + shlex.quote(remote))
 
     def require_space(self, path, required_bytes):
@@ -183,7 +236,10 @@ class Device:
                 local = destination / remote.lstrip('/')
                 local.parent.mkdir(parents=True, exist_ok=True)
                 s.get(remote, str(local))
-                manifest[remote] = {'sha256': hashlib.sha256(local.read_bytes()).hexdigest(), 'mode': info.st_mode & 0o777}
+                digest = hashlib.sha256(local.read_bytes()).hexdigest()
+                if self.command('sha256sum ' + shlex.quote(remote)).split()[0] != digest:
+                    raise RuntimeError('Backup verification failed: the source changed or the transfer was incomplete. No installation files were changed. Retry after the miner is idle.')
+                manifest[remote] = {'sha256': digest, 'mode': info.st_mode & 0o777}
         (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
         identity={'firmware':firmware, 'mac':self.command('cat /sys/class/net/eth0/address').strip(), 'host_key':base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode()}
         (destination / 'device.json').write_text(json.dumps(identity),encoding='utf-8')
@@ -219,6 +275,15 @@ class Device:
         self.command('sync; reboot')
 
     def install(self, root, password, backup_dir, progress=print):
+        self.installation_started = False
+        try:
+            return self._install(root, password, backup_dir, progress)
+        except Exception as exc:
+            if self.installation_started:
+                raise RuntimeError('Installation stopped after changes began. Do not reboot or blindly repeat installation. Recovery backup: ' + str(backup_dir) + '. Check the miner dashboard and use Restore a recovery backup if recovery is needed. Details: ' + str(exc)) from None
+            raise
+
+    def _install(self, root, password, backup_dir, progress=print):
         root = Path(root)
         info = self.inspect()
         binary = (root / 'build/paperclip-controller').read_bytes()
@@ -236,6 +301,7 @@ class Device:
         backup = self.backup(backup_dir)
 
         init = startup_config((backup / 'etc/inittab').read_text(encoding='utf-8'), info['firmware'])
+        self.installation_started = True
         if info['firmware'] in READ_ONLY_FIRMWARES:
             self.command('mount -o remount,rw /')
         progress('Installing controller and original-port dashboard…')
@@ -266,5 +332,18 @@ class Device:
         self.command('if pidof controller >/dev/null; then kill -TERM $(pidof controller); else nohup /usr/config/paperclip/boot.sh </dev/null >/tmp/paperclip-start.log 2>&1 & fi; echo started')
         if info['firmware'] in READ_ONLY_FIRMWARES:
             self.command('sync; mount -o remount,ro /')
+        progress('Checking that the new dashboard is responding…')
+        ready = False
+        for attempt in range(10):
+            try:
+                state = self._api_once('/api/status')
+                if isinstance(state, dict) and {'device', 'approved', 'stale', 'halted'} <= state.keys() and not state['stale']:
+                    ready = True
+                    break
+            except (OSError, paramiko.SSHException, http.client.HTTPException, ValueError, RuntimeError):
+                pass
+            time.sleep(2)
+        if not ready:
+            raise RuntimeError('Files were installed, but dashboard startup could not be confirmed. Mining has not been verified.')
         progress('Installed. Configure mining pools at http://' + self.host + '/ . Recovery backup: ' + str(backup))
         return backup
