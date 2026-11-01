@@ -27,7 +27,10 @@ is provided without warranty; see [LICENSE](LICENSE).
 
 The next version adds bounded retries for SSH greetings and read-only device
 checks, explicit connection progress, verified backup/file transfers, and a
-startup check before reporting installation success. Wrong passwords and changed
+startup check before reporting installation success. The controller retries temporary
+read failures once and preserves the original safety-stop details across restarts.
+Resuming a stopped miner also restores its existing algorithm configuration.
+Wrong passwords and changed
 SSH identities stop immediately. Installation writes, login requests and reboot
 commands are never automatically replayed after a lost connection.
 

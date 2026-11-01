@@ -88,7 +88,7 @@ func atomicJSON(path string, value any) error {
 	}
 	return nil
 }
-func (c *Controller) native(method, path string, body any, auth bool) ([]byte, error) {
+func (c *Controller) nativeOnce(method, path string, body any, auth bool) ([]byte, error) {
 	var data []byte
 	var err error
 	if body != nil {
@@ -115,7 +115,7 @@ func (c *Controller) native(method, path string, body any, auth bool) ([]byte, e
 		return nil, err
 	}
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("stock controller HTTP %d", res.StatusCode)
+		return nil, stockHTTPError(res.StatusCode)
 	}
 	return b, nil
 }
@@ -194,7 +194,12 @@ func (c *Controller) stop(reason string) {
 	}
 	c.halted = true
 	c.message = reason
-	_ = atomicJSON(filepath.Join(c.dir, "halted.json"), map[string]string{"reason": reason})
+	if saved, err := saveStop(filepath.Join(c.dir, "halted.json"), reason, c.device); err != nil {
+		log.Print("Cannot persist safety stop: ", err)
+	} else {
+		c.message = saved
+	}
+	log.Print("Mining stopped: ", c.message)
 	c.fans(100)
 }
 func (c *Controller) fans(level int) {
@@ -262,7 +267,7 @@ func (c *Controller) safety() {
 		if c.pending != nil {
 			_ = c.rollback("Temperature fault")
 		}
-		c.stop(fmt.Sprintf("Temperature fault: average >=%.0f C, chip >=%.0f C, or missing sensor; mining stopped", averageLimit, peakLimit))
+		c.stop(fmt.Sprintf("Temperature safety stop: average %.1f C (valid=%t, limit %.0f C), chip %.1f C (limit %.0f C), sensor error=%v", temp, ok, averageLimit, peak, peakLimit, peakErr))
 		return
 	}
 	c.lastGood = time.Now()
@@ -477,6 +482,10 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 					c.lastGood = time.Now()
 					c.message = "Resuming confirmed settings"
 					_ = exec.Command("/bin/sh", "-c", "kill -CONT $(pidof xminerd)").Run()
+					err = c.reapplyAlgorithm()
+					if err != nil {
+						c.stop("Resume failed while restoring mining engine: " + err.Error())
+					}
 				}
 			}
 		}
@@ -633,7 +642,7 @@ func main() {
 		}
 	}
 	if _, e = os.Stat(filepath.Join(*dir, "halted.json")); e == nil {
-		c.stop("Safety stop retained; inspect cooling before resuming")
+		c.stop("Safety stop retained; original cause unavailable. Check diagnostics before resuming")
 	} else if e = c.apply(c.approved); e != nil {
 		log.Fatal("cannot apply approved settings")
 	}
