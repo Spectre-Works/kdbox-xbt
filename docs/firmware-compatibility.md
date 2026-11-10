@@ -1,5 +1,12 @@
 # Firmware compatibility
 
+> **Evidence provenance:** The results below are preserved upstream reports from
+> `connorslab/paperclip-flasher` at `5589e0604596722896266f7f0d565c1cc4484118`.
+> They describe upstream tests on one original KD BOX, not new SPECTRE WORKS
+> tests. This fork remains a hardware-unvalidated preview until the local
+> installation checklist has been completed and results recorded.
+
+
 The 0.1.0 prerelease supports original Goldshell KDBox firmware **2.2.1** only.
 The 0.1.1 prerelease supports **2.0.6**, plus **2.0.5, 2.0.7q, 2.0.8, 2.0.9, 2.1.0, 2.1.1, 2.1.3, 2.2.0 and 2.2.3** after installation, accepted-share,
 pool-display and reboot tests on an original KDBox / MCB_V5_4.

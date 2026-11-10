@@ -9,3 +9,8 @@ config.json
 *.key
 *.cpb
 *.ius
+
+# Private local environments and generated reports
+.venv-*/
+*.log
+.DS_Store

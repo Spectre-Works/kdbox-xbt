@@ -1,8 +1,9 @@
 const $=id=>document.getElementById(id);let initialized=false,busy=false;
 
-document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+let savedTheme;try{savedTheme=localStorage.getItem('theme')}catch(e){}
+document.documentElement.dataset.theme=['light','dark'].includes(savedTheme)?savedTheme:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
 
-$('theme').onclick=()=>{let t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;localStorage.setItem('theme',t)};
+$('theme').onclick=()=>{let t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('theme',t)}catch(e){}};
 
 
 
@@ -20,7 +21,7 @@ $('confirm').onclick=()=>action(()=>api('confirm',{}));$('revert').onclick=()=>a
 
 $('resume').onclick=()=>action(()=>api('resume',{}));
 
-async function refresh(){try{const s=await api('status'),d=s.device||{};if(!busy)$('notice').textContent=(s.stale?'Telemetry is updating. ':'')+s.message;
+async function refresh(){try{const s=await api('status'),d=s.device||{};if(s.software?.version)$('software-version').textContent='· '+s.software.version;if(!busy)$('notice').textContent=(s.stale?'Telemetry is updating. ':'')+s.message;
 
  $('resume').hidden=!s.halted;$('live-tuning').textContent=d.clock?`Running: ${d.clock} MHz · ${d.voltage} V`:'Waiting for live ASIC settings';
 
@@ -28,7 +29,7 @@ async function refresh(){try{const s=await api('status'),d=s.device||{};if(!busy
 
  $('trial').hidden=!s.pending;$('countdown').textContent=`Trial: ${s.seconds_left}s remaining`;if(!initialized&&s.approved){$('clock').value=s.approved.clock;$('voltage').value=s.approved.millivolts;$('fan').value=s.approved.fan;$('mode').value=s.approved.mode;$('fan').oninput();if(s.algorithm!=null)$('algo').value=s.algorithm;initialized=true}
 
- }catch(e){$('notice').textContent='Miner disconnected. Pending trials revert on the device automatically.'}}
+ }catch(e){$('notice').textContent='Miner disconnected. Recovery is designed to run on the device, but a frozen or unpowered miner cannot complete it. Inspect the miner before retrying.'}}
 
 async function history(){try{const raw=await api('history');const a=Array.isArray(raw)?raw:[];if(!a.length){$('chart').innerHTML='<text x="20" y="90">History is warming up…</text>';return}const values=a.map(x=>Number(x)||0),top=Math.max(...values,1);const points=values.map((v,i)=>`${20+i*960/Math.max(values.length-1,1)},${160-v/top*135}`).join(' ');$('chart').innerHTML=`<text x="20" y="15">${(top/1000).toFixed(0)} GH/s</text><polyline points="${points}"/>`}catch(e){$('chart').innerHTML='<text x="20" y="90">History temporarily unavailable</text>'}}
 

@@ -1,0 +1,25 @@
+KD BOX XBT Mod
+Maintained as a SPECTRE WORKS derivative of Paperclip Flasher.
+
+Upstream: https://github.com/connorslab/paperclip-flasher
+Fork: https://github.com/Spectre-Works/kdbox-xbt
+Initial upstream revision: 5589e0604596722896266f7f0d565c1cc4484118
+
+Copyright (c) 2026 Paperclip Flasher contributors
+Copyright (c) 2026 SPECTRE WORKS LLC, for original modifications
+
+The original MIT license is preserved in LICENSE. Original code and the
+new generic chip icon contributed to this fork are also provided under MIT.
+Upstream contributors are not responsible for this fork and have not been
+represented as endorsing it. Goldshell is the hardware manufacturer, not
+the publisher of this modification.
+
+SPECTRE WORKS, Paperclip, Goldshell, and other names may be trademarks of
+their respective owners. The software license does not grant trademark
+rights or authorize misleading endorsement claims.
+
+Vendor firmware, vendor mining engines, signing keys, Python, Paramiko,
+Tcl/Tk, and their dependencies are not included in the default distribution.
+Their own licenses and any applicable obligations remain separate. The
+compiled controller includes Go runtime code; its build-specific notices
+are included in controller/web/open-source.txt and installed on the miner.

@@ -13,6 +13,9 @@ from urllib.parse import urlencode
 import urllib.request
 import urllib.error
 import paramiko
+from .payload import validate_payload, WEB_ASSETS
+from .recovery import BACKUP_PATHS, WEB_PATHS, LEGACY_LOGO_SHA256, validate_backup
+from . import __version__
 
 PROFILE = json.loads((Path(__file__).resolve().parent.parent / 'controller' / 'compatibility.json').read_text(encoding='utf-8'))
 
@@ -217,14 +220,9 @@ class Device:
     def backup(self, destination):
         firmware = self.inspect()['firmware']
         destination = Path(destination)
-        destination.mkdir(parents=True, exist_ok=False)
-        paths = ['/etc/inittab', '/root/yottamc/index.html', '/root/settings/algosetting.json',
-                 '/usr/config/minerd/settings/algosetting.json', '/usr/config/minerd/settings/.algosetting.json',
-                 '/usr/config/minerd/settings/cpbsetting.json', '/usr/config/minerd/settings/.cpbsetting.json',
-                 '/usr/config/minerd/settings/pools.json', '/usr/config/minerd/settings/.pools.json',
-                 '/usr/config/bfgminer/.bfgminer.json', '/usr/config/bfgminer/bfgminer.json',
-                 '/etc/init.d/S99paperclip', '/usr/config/paperclip/config.json',
-                 '/usr/config/paperclip/approved.json']
+        destination.mkdir(mode=0o700, parents=True, exist_ok=False)
+        destination.chmod(0o700)
+        paths = BACKUP_PATHS
         manifest = {}
         with self.client.open_sftp() as s:
             for remote in paths:
@@ -234,14 +232,16 @@ class Device:
                     manifest[remote] = {'absent': True}
                     continue
                 local = destination / remote.lstrip('/')
-                local.parent.mkdir(parents=True, exist_ok=True)
+                local.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 s.get(remote, str(local))
+                local.chmod(0o600)
                 digest = hashlib.sha256(local.read_bytes()).hexdigest()
                 if self.command('sha256sum ' + shlex.quote(remote)).split()[0] != digest:
                     raise RuntimeError('Backup verification failed: the source changed or the transfer was incomplete. No installation files were changed. Retry after the miner is idle.')
                 manifest[remote] = {'sha256': digest, 'mode': info.st_mode & 0o777}
         (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
-        identity={'firmware':firmware, 'mac':self.command('cat /sys/class/net/eth0/address').strip(), 'host_key':base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode()}
+        (destination / 'manifest.json').chmod(0o600)
+        identity={'manifest_version': 2, 'software_version': __version__, 'firmware':firmware, 'mac':self.command('cat /sys/class/net/eth0/address').strip(), 'host_key':base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode()}
         (destination / 'device.json').write_text(json.dumps(identity),encoding='utf-8')
         return destination
 
@@ -255,24 +255,29 @@ class Device:
         if identity['mac']!=self.command('cat /sys/class/net/eth0/address').strip() or identity['host_key']!=base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode():
             raise RuntimeError('This backup belongs to another miner')
         manifest=json.loads((destination/'manifest.json').read_text(encoding='utf-8'))
-        allowed={'/etc/inittab','/root/yottamc/index.html','/root/settings/algosetting.json',
-                 '/usr/config/minerd/settings/algosetting.json','/usr/config/minerd/settings/.algosetting.json',
-                 '/usr/config/minerd/settings/cpbsetting.json','/usr/config/minerd/settings/.cpbsetting.json',
-                 '/usr/config/minerd/settings/pools.json','/usr/config/minerd/settings/.pools.json',
-                 '/usr/config/bfgminer/.bfgminer.json','/usr/config/bfgminer/bfgminer.json',
-                 '/etc/init.d/S99paperclip','/usr/config/paperclip/config.json','/usr/config/paperclip/approved.json'}
-        for remote,meta in manifest.items():
-            if remote not in allowed:raise RuntimeError('Unexpected recovery path')
-            if not meta.get('absent') and hashlib.sha256((destination/remote.lstrip('/')).read_bytes()).hexdigest()!=meta['sha256']:
-                raise RuntimeError('Recovery backup checksum mismatch')
+        manifest_version = validate_backup(destination, identity, manifest)
         if info['firmware'] in READ_ONLY_FIRMWARES:
             self.command('mount -o remount,rw /')
         # Restore boot configuration last. Do not restart until all files are written.
         for remote,meta in sorted(manifest.items(),key=lambda item:item[0]=='/etc/inittab'):
-            if not meta.get('absent'):self.write(remote,(destination/remote.lstrip('/')).read_bytes(),meta['mode'])
+            if not meta.get('absent'):
+                self.write(remote,(destination/remote.lstrip('/')).read_bytes(),meta['mode'])
+            elif manifest_version == 2 and remote in WEB_PATHS:
+                # Only remove allowlisted web files proven absent in this snapshot.
+                self.command('rm -f ' + shlex.quote(remote))
         if manifest.get('/etc/init.d/S99paperclip',{}).get('absent'):
-            self.command('mv /etc/init.d/S99paperclip /usr/config/paperclip/disabled-startup-hook')
+            self.command('if test -e /etc/init.d/S99paperclip; then mv /etc/init.d/S99paperclip /usr/config/paperclip/disabled-startup-hook; fi')
         self.command('sync; reboot')
+
+    def retire_upstream_logo(self, backup):
+        # Never delete an arbitrary/custom logo. Its original bytes are retained
+        # in the verified recovery snapshot before a known upstream file is removed.
+        saved = Path(backup) / 'root/yottamc/paperclip.svg'
+        if saved.is_file() and hashlib.sha256(saved.read_bytes()).hexdigest() == LEGACY_LOGO_SHA256:
+            remote = '/root/yottamc/paperclip.svg'
+            self.command('if test -f ' + remote + '; then '
+                         'set -- $(sha256sum ' + remote + '); '
+                         'if test "$1" = ' + shlex.quote(LEGACY_LOGO_SHA256) + '; then rm ' + remote + '; fi; fi')
 
     def install(self, root, password, backup_dir, progress=print):
         self.installation_started = False
@@ -288,12 +293,10 @@ class Device:
         info = self.inspect()
         if self.command('test -f /usr/config/paperclip/halted.json && echo halted; true').strip() == 'halted':
             raise RuntimeError('The miner has an active safety stop. Inspect its cooling and resolve the stop in the dashboard before installing. No installation files were changed.')
-        binary = (root / 'build/paperclip-controller').read_bytes()
-        if binary[:4] != b'\x7fELF':
-            raise RuntimeError('Missing ARM controller build')
+        binary = validate_payload(root)
         # Atomic replacement needs room for the new binary beside the old one.
         self.require_space('/usr/config', len(binary) + 1024 * 1024)
-        self.require_space('/root', sum(p.stat().st_size for p in (root / 'controller/web').iterdir()) + 1024 * 1024)
+        self.require_space('/root', sum((root / 'controller/web' / name).stat().st_size for name in WEB_ASSETS) + 1024 * 1024)
         self.token = self.api('/user/login?' + urlencode({'username': 'admin', 'password': password})).get('JWT Token')
         if not self.token:
             raise RuntimeError('Miner dashboard password was not accepted')
@@ -320,8 +323,9 @@ class Device:
             self.write('/usr/config/paperclip/approved.json', json.dumps(approved).encode())
         if self.command('test -f /root/yottamc/legacy.html && echo exists; true').strip() != 'exists':
             self.write('/root/yottamc/legacy.html', (backup / 'root/yottamc/index.html').read_bytes(), 0o644)
-        for asset in (root / 'controller/web').iterdir():
-            self.write('/root/yottamc/' + asset.name, asset.read_bytes(), 0o644)
+        for name in WEB_ASSETS:
+            self.write('/root/yottamc/' + name, (root / 'controller/web' / name).read_bytes(), 0o644)
+        self.retire_upstream_logo(backup)
         menu = self.api('/mcb/algosetting')
         menu['algos'] = [{'name': 'blake2s(KDA)', 'id': 0}, {'name': 'blake2b(SC)', 'id': 1}]
         for name in ['/root/settings/algosetting.json', '/usr/config/minerd/settings/algosetting.json', '/usr/config/minerd/settings/.algosetting.json']:

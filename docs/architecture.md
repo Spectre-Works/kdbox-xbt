@@ -52,3 +52,39 @@ maintenance interface, and native API clients can bypass them. Avoid using those
 interfaces concurrently for tuning. Wi-Fi controls are conditional on native
 hardware support. Hardware testing presently covers one original KDBox test unit;
 do not infer support for other Goldshell products from the shared UI.
+
+## SPECTRE WORKS fork: packaging and recovery changes
+
+The product is KD BOX XBT Mod / KD BOX Control. Internal paths, authentication
+cookie, boot hooks, watchdog communication, and the native API remain compatible
+with upstream. Display branding is separate from this runtime namespace.
+
+`python tools/build.py` generates actual Go toolchain notices, embeds the complete
+web payload, cross-compiles the controller, and creates a SHA-256 manifest. Both
+the desktop GUI and the device installer validate that payload before installation
+writes. The GUI checks it before connecting, so a missing/broken package cannot
+trigger automatic SSH enablement. Checksums detect inconsistency, not an untrusted
+publisher; obtain code/artifacts from the intended fork and commit.
+
+The default release is editable source plus the ARM controller, with separately
+installed desktop dependencies. It is not the old frozen Paperclip executable.
+The complete license text is embedded in and deployed with the controller/UI.
+
+New backup manifests have version 2 and include all managed UI files, the existing
+controller binary, and startup scripts in addition to the inherited configuration
+backup. Files and the snapshot directory are owner-only on POSIX systems. On
+Windows, verify the user-profile/folder ACLs separately. Backups contain secrets.
+Every recovery path is allowlisted and every present file is verified before any
+restore write; incomplete schema-2 manifests are rejected.
+
+Restore preserves support for original schema-1 snapshots, but those lacked full
+UI/controller copies. They restore the data they actually contain, not a complete
+software version. Version-2 restoration removes only allowlisted web assets that
+were absent in that snapshot. An original-stock restore disables the custom boot
+hook; unused runtime files may remain on disk but should not be started manually.
+Neither schema is a full filesystem image or a backup of the vendor bootloader.
+
+During upgrade, only the exact known upstream `paperclip.svg` is retired, after
+its verified bytes are retained in the recovery snapshot. Unknown/custom files
+are not swept from the vendor web directory. The original maintenance page is
+preserved. Do not clear a pending trial or safety stop to force an upgrade.

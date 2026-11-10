@@ -400,7 +400,7 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if r.Method == "GET" && r.URL.Path == "/api/status" {
-		jsonReply(w, 200, map[string]any{"algorithm": c.algorithm, "device": c.device, "approved": c.approved, "pending": c.pending, "seconds_left": max(0, int(time.Until(c.deadline).Seconds())), "message": c.message, "halted": c.halted, "stale": time.Since(c.lastGood) > 15*time.Second})
+		jsonReply(w, 200, map[string]any{"software": map[string]string{"name": productName, "version": buildVersion}, "algorithm": c.algorithm, "device": c.device, "approved": c.approved, "pending": c.pending, "seconds_left": max(0, int(time.Until(c.deadline).Seconds())), "message": c.message, "halted": c.halted, "stale": time.Since(c.lastGood) > 15*time.Second})
 		return
 	}
 	cookie, e := r.Cookie("paperclip")
@@ -665,7 +665,7 @@ func main() {
 	}
 	if !c.halted {
 		if c.message == "Starting" {
-			c.message = "Paperclip safeguards active"
+			c.message = "KD BOX safeguards active"
 		}
 		_ = exec.Command("/bin/sh", "-c", "kill -CONT $(pidof xminerd) 2>/dev/null").Run()
 	}
