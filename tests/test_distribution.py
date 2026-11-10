@@ -169,10 +169,10 @@ class BrandingAndNotices(unittest.TestCase):
             text = (ROOT / 'controller/web' / name).read_text(encoding='utf-8').lower()
             self.assertNotIn('paperclip', text, name)
             self.assertNotIn('paperclippool.xyz', text, name)
-        self.assertIn('KD BOX Control', (ROOT / 'controller/web/index.html').read_text())
+        self.assertIn('KD BOX Control', (ROOT / 'controller/web/index.html').read_text(encoding='utf-8'))
         self.assertFalse((ROOT / 'controller/web/paperclip.svg').exists())
-        self.assertIn('Copyright (c) 2026 Paperclip Flasher contributors', (ROOT / 'LICENSE').read_text())
-        self.assertIn('Permission is hereby granted', (ROOT / 'LICENSE').read_text())
+        self.assertIn('Copyright (c) 2026 Paperclip Flasher contributors', (ROOT / 'LICENSE').read_text(encoding='utf-8'))
+        self.assertIn('Permission is hereby granted', (ROOT / 'LICENSE').read_text(encoding='utf-8'))
 
     def test_static_assets_are_flat_and_complete(self):
         actual = {p.name for p in (ROOT / 'controller/web').iterdir()}
@@ -180,8 +180,8 @@ class BrandingAndNotices(unittest.TestCase):
         for path in (ROOT / 'controller/web').iterdir():
             self.assertTrue(path.is_file())
         ElementTree.parse(ROOT / 'controller/web/favicon.svg')
-        self.assertIn((ROOT / 'LICENSE').read_text().strip(),
-                      (ROOT / 'controller/web/open-source.txt').read_text())
+        self.assertIn((ROOT / 'LICENSE').read_text(encoding='utf-8').strip(),
+                      (ROOT / 'controller/web/open-source.txt').read_text(encoding='utf-8'))
 
     def test_go_notice_generation_retains_actual_license_files(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -195,7 +195,7 @@ class BrandingAndNotices(unittest.TestCase):
             (goroot / 'PATENTS').write_text('Go patent notice')
             (goroot / 'src/vendor/example/LICENSE').write_text('vendored terms')
             inventory = prepare_notices(root, goroot, 'go1.27.3')
-            text = (root / 'controller/web/open-source.txt').read_text()
+            text = (root / 'controller/web/open-source.txt').read_text(encoding='utf-8')
             for expected in ('original MIT terms', 'upstream attribution', 'Go terms',
                              'Go patent notice', 'vendored terms', 'go1.27.3'):
                 self.assertIn(expected, text)
@@ -207,7 +207,7 @@ class BrandingAndNotices(unittest.TestCase):
                 prepare_notices(Path(folder), Path(folder), 'go1.27.3')
 
     def test_default_workflow_does_not_freeze_python(self):
-        workflow = (ROOT / '.github/workflows/test.yml').read_text()
+        workflow = (ROOT / '.github/workflows/test.yml').read_text(encoding='utf-8')
         self.assertNotIn('PyInstaller', workflow)
         self.assertNotIn('pyinstaller', workflow)
         self.assertIn('python tools/build.py', workflow)
