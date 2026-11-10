@@ -1,0 +1,17 @@
+name: Source archive
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive the exact checked-out source and licenses
+        shell: bash
+        run: git archive --format=zip --prefix=kdbox-xbt/ -o "$RUNNER_TEMP/kdbox-xbt-source.zip" HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kdbox-xbt-source-${{ github.sha }}
+          path: ${{ runner.temp }}/kdbox-xbt-source.zip
+          if-no-files-found: error
