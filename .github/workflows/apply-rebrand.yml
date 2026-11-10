@@ -19,13 +19,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply exact reviewed files after verifying every checksum
-        run: python .maintenance/apply.py
+      - name: Apply exact reviewed source correction
+        run: python .maintenance/fix.py
       - name: Commit only verified source changes to the working branch
         shell: bash
         run: |
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Rebrand KD BOX XBT, preserve licenses, verify payloads, and strengthen recovery'
+          git commit -m 'Keep recovery device identity private alongside snapshot contents'
           git push origin HEAD:refs/heads/rebrand/spectre-works
