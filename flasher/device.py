@@ -243,6 +243,7 @@ class Device:
         (destination / 'manifest.json').chmod(0o600)
         identity={'manifest_version': 2, 'software_version': __version__, 'firmware':firmware, 'mac':self.command('cat /sys/class/net/eth0/address').strip(), 'host_key':base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode()}
         (destination / 'device.json').write_text(json.dumps(identity),encoding='utf-8')
+        (destination / 'device.json').chmod(0o600)
         return destination
 
     def restore(self, destination):
