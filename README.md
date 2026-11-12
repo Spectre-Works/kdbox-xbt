@@ -63,11 +63,11 @@ for installation. [Firmware evidence](docs/firmware-compatibility.md)
 
 ## 2. Open the installer
 
-The old 1.0 release has been withdrawn while the replacement is finished.
-A prepared installer is not currently published. Check [GitHub Releases](https://github.com/Spectre-Works/kdbox-xbt/releases)
-for the replacement; do not use an old cached download. Maintainers can build a
-verified package from source using the commands below. The following launch
-instructions apply to a complete prepared package.
+Download **[KDBoxXBT-1.0.zip](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0/KDBoxXBT-1.0.zip)**
+and **[SHA256SUMS.txt](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0/SHA256SUMS.txt)**
+from the [1.0 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0).
+Use the current release assets and verify their checksums; discard cached copies
+of the withdrawn installer.
 
 The product ZIP includes the prebuilt ARM controller and editable installer source.
 GitHub's **Code → Download ZIP** and automatic **Source code** downloads are source

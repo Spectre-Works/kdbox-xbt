@@ -1,7 +1,8 @@
 # KD BOX XBT 1.0
 
-The original release has been withdrawn. This file describes the intended product;
-check [Releases](https://github.com/Spectre-Works/kdbox-xbt/releases) for replacement availability.
+Replacement 1.0 release with the corrected installer, Apache 2.0 licensing model,
+reserved branding and the SPECTRE WORKS interface. Discard cached copies of the
+withdrawn package and verify the checksums attached to this release.
 
 Customer-installed SSH modification for the **original Goldshell KD BOX,
 MCB_V5_4, ARMv7, running stock Goldshell 2.2.1**. Other KD BOX variants and stock
@@ -11,7 +12,7 @@ MCB_V5_4, ARMv7, running stock Goldshell 2.2.1**. Other KD BOX variants and stoc
 
 Read the [README](../README.md) before modifying your miner. Download
 `KDBoxXBT-1.0.zip` and `SHA256SUMS.txt` from the
-[replacement release](https://github.com/Spectre-Works/kdbox-xbt/releases),
+[1.0 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0),
 verify the ZIP checksum, extract the entire package, and open the launcher for
 your OS. GitHub's automatic source downloads are not prepared installers.
 
@@ -28,6 +29,26 @@ identity confirmation, exact stock-base checks, space/payload checks, a private
 schema-6 snapshot and an explicit final install confirmation. It detects an
 existing mod and offers dashboard/recovery access without reinstalling it.
 Neither the dashboard nor SSH password is changed by installation.
+
+## Installer and recovery refinements
+
+- Official emblem, graphical wordmark, **REBUILT FOR BITCOIN.** tagline and website
+  favicons, with local Chakra Petch fonts, dark/light themes and mobile layouts.
+- The server starts before browser launch. A blocking desktop launcher cannot
+  prevent HTTP replies; text browsers receive a clear JavaScript requirement.
+- New installations select Bitcoin (XBT), persist the choice and verify stock API
+  readback. Existing saved choices survive repair and restart. The dashboard
+  reflects confirmed controller status rather than assuming a request succeeded.
+- A working controller and startup/dashboard files identify an existing install.
+  Leftovers after a stock reflash open a separate **Back up & repair** confirmation.
+  Repair preserves saved settings, makes a new private backup and does not bypass
+  safety stops or pending recovery journals.
+- Schema-6 backups include the website favicons; complete schema-3/4/5 snapshots
+  remain restorable. The private backup-folder override supports hosts where the
+  normal home folder cannot retain private permissions.
+- Apache 2.0 applies to SPECTRE WORKS contributions, upstream MIT attribution is
+  retained, and modified redistributions must use their own product identity under
+  the separate [branding policy](../BRANDING.md).
 
 ## Dashboard and operating defaults
 
