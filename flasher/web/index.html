@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KD BOX XBT Installer · SPECTRE WORKS</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="stylesheet" href="/wizard.css">
+    <script defer src="/wizard.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to installer</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="https://spectreworks.io" target="_blank" rel="noopener noreferrer" aria-label="SPECTRE WORKS — Rebuilt for Bitcoin">
+          <img class="brand-emblem" src="/spectre-logo.png" width="42" height="42" alt="">
+          <span class="brand-copy"><img class="brand-wordmark" src="/spectre-wordmark.png" width="1115" height="250" alt="SPECTRE WORKS"><small>Rebuilt for Bitcoin.</small></span>
+        </a>
+        <button id="theme" type="button" class="secondary">Light mode</button>
+      </div>
+    </header>
+    <main>
+      <div class="page-heading">
+        <div><p class="eyebrow">Device setup &amp; recovery</p><h1>KD BOX XBT Installer</h1><p class="page-intro">Install, repair or recover your original KD BOX.<br>Guided setup. Your passwords and pools stay yours.</p></div>
+        <div class="version-note"><span class="local-indicator">On this computer</span><span id="installer-version">Version 1.0</span></div>
+      </div>
+      <nav class="wizard-progress" aria-label="Installation progress">
+        <ol>
+          <li id="step1"><span class="step-number" aria-hidden="true">01</span><span>Find miner</span></li>
+          <li id="step2"><span class="step-number" aria-hidden="true">02</span><span>Connect</span></li>
+          <li id="step3"><span class="step-number" aria-hidden="true">03</span><span>Review &amp; install</span></li>
+          <li id="step4"><span class="step-number" aria-hidden="true">04</span><span>Start mining</span></li>
+        </ol>
+      </nav>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div id="error" role="alert" hidden></div>
+      <noscript><section class="content-panel" role="alert">This installer needs JavaScript. Open the local URL in Firefox, Chrome, Edge or another JavaScript-capable browser. Text browsers cannot run the guided installer.</section></noscript>
+      <section id="content" class="content-panel" aria-label="Installer steps" tabindex="-1"></section>
+      <footer class="installer-footer">
+        <div class="footer-top"><nav aria-label="Installer resources"><a href="https://github.com/Spectre-Works/kdbox-xbt#readme" target="_blank" rel="noopener noreferrer">Setup guide</a><a href="https://github.com/Spectre-Works/kdbox-xbt" target="_blank" rel="noopener noreferrer">GitHub repository</a><a href="/licenses.html" target="_blank" rel="noopener noreferrer">Licenses &amp; attribution</a></nav><button id="close" class="secondary" type="button">Close installer</button></div>
+        <p>DIY use at your own risk · Limited support · Your existing passwords stay unchanged.</p>
+        <p>Keep this window and the launcher terminal open until the operation finishes.</p>
+      </footer>
+    </main>
+  </body>
+</html>

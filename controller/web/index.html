@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KD BOX Control · SPECTRE WORKS</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+  <link rel="stylesheet" href="/style.css?v=sw-8">
+  <script defer src="/app.js?v=sw-11"></script>
+  <script defer src="/settings.js?v=sw-3"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#overview">
+        <img src="/spectre-logo.png" width="44" height="44" alt="">
+        <span><span class="brand-publisher">SPECTRE WORKS</span><strong>KD BOX Control</strong></span>
+      </a>
+      <div class="header-actions">
+        <button id="theme" class="button secondary" type="button">Light mode</button>
+        <button id="unlock" class="button" type="button">Unlock controls</button>
+      </div>
+    </div>
+    <nav class="container navigation" aria-label="Main navigation">
+      <a href="#overview" aria-current="page">Overview</a>
+      <a href="#mining">Mining</a>
+      <a href="#network">Network</a>
+      <a href="#system">System</a>
+      <a href="#diagnostics">Diagnostics</a>
+    </nav>
+  </header>
+
+  <main id="main" class="container" tabindex="-1">
+    <div class="page-heading">
+      <div>
+        <h1 id="page-title">Miner overview</h1>
+        <p id="page-description">Check mining activity, cooling, and controller status.</p>
+      </div>
+      <div class="status-group" aria-label="Miner connection and activity">
+        <span id="connection" class="status-label" data-tone="neutral">Connecting</span>
+        <a id="miner-state" class="status-label status-trigger" data-tone="neutral" href="#diagnostics" aria-describedby="status-tooltip">
+          <span id="status-title" role="status">Connecting to miner</span>
+          <span id="status-tooltip" class="status-tooltip" role="tooltip">
+            <strong id="status-tooltip-title">Connecting to miner</strong>
+            <span id="status-detail">Waiting for the controller to respond.</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <section data-page="overview" class="page" aria-label="Overview">
+      <dl class="metrics" aria-label="Live mining metrics">
+        <div class="metric">
+          <dt>Current hashrate</dt><dd id="hash">—</dd>
+          <dd id="hash-average" class="metric-detail">Average unavailable</dd>
+        </div>
+        <div class="metric">
+          <dt>Accepted shares</dt><dd id="shares">—</dd>
+          <dd id="shares-rejected" class="metric-detail">Rejected shares unavailable</dd>
+        </div>
+        <div class="metric">
+          <dt>Board temperature</dt><dd id="temp">—</dd>
+          <dd id="chip-peak" class="metric-detail">Hottest chip unavailable</dd>
+        </div>
+        <div class="metric">
+          <dt>Fans</dt>
+          <dd class="fan-reading"><span class="fan-name">Fan 1</span><span class="fan-values"><strong id="fan-1-percent">—</strong><span id="fan-1-rpm">RPM unavailable</span></span></dd>
+          <dd class="fan-reading"><span class="fan-name">Fan 2</span><span class="fan-values"><strong id="fan-2-percent">—</strong><span id="fan-2-rpm">RPM unavailable</span></span></dd>
+        </div>
+        <div class="metric">
+          <dt>Clock &amp; voltage</dt><dd id="overview-clock">—</dd>
+          <dd id="overview-voltage" class="metric-detail">Core voltage unavailable</dd>
+        </div>
+      </dl>
+
+      <div class="overview-grid">
+        <section class="card chart-card">
+          <div class="card-heading">
+            <div><h2>Hashrate history</h2><p id="chart-description">GH/s · Last hour</p></div>
+          </div>
+          <div id="chart-ranges" class="chart-ranges" role="group" aria-label="Hashrate history range">
+            <button class="button secondary" type="button" data-hours="auto" aria-pressed="true">Auto</button>
+            <button class="button secondary" type="button" data-hours="1" aria-pressed="false">1h</button>
+            <button class="button secondary" type="button" data-hours="3" aria-pressed="false">3h</button>
+            <button class="button secondary" type="button" data-hours="6" aria-pressed="false">6h</button>
+            <button class="button secondary" type="button" data-hours="12" aria-pressed="false">12h</button>
+            <button class="button secondary" type="button" data-hours="24" aria-pressed="false">24h</button>
+          </div>
+          <div id="chart-empty" class="chart-empty">Loading hashrate history…</div>
+          <svg id="chart" viewBox="0 0 620 174" role="img" aria-label="Hashrate history in gigahashes per second" hidden></svg>
+          <div class="chart-axis" id="chart-axis" hidden><span id="chart-start">1 hour ago</span><span>Now</span></div>
+        </section>
+        <section class="card setup-card">
+          <h2>Mining configuration</h2>
+          <dl class="facts">
+            <div><dt>Algorithm</dt><dd id="active-algorithm">—</dd></div>
+            <div><dt>Primary pool</dt><dd id="primary-pool">Loading…</dd></div>
+            <div><dt>Pool activity</dt><dd id="pool-activity">—</dd></div>
+            <div><dt>Hardware errors</dt><dd id="error-count">—</dd></div>
+            <div title="Time since the miner last entered Mining active."><dt>Mining session</dt><dd id="mining-session">—</dd></div>
+          </dl>
+          <button id="manage-mining" type="button" class="button secondary manage-mining">Manage mining</button>
+        </section>
+      </div>
+    </section>
+
+    <section data-page="mining" class="page" aria-label="Mining" hidden>
+      <div class="access-note" data-lock-note hidden>
+        <p>Use <strong>Unlock controls</strong> in the header to manage pools, change algorithms, or tune the miner.</p>
+      </div>
+      <section class="card">
+        <div class="card-heading">
+          <div><h2>Mining pools</h2><p>The miner tries the primary pool first, then backups in order.</p></div>
+          <button type="button" class="button secondary" id="pool-toggle" aria-expanded="false" aria-controls="pool-form" hidden>Add pool</button>
+        </div>
+        <p id="pool-state" class="inline-message">Loading saved pools…</p>
+        <div id="pools" class="pool-list"></div>
+        <form id="pool-form" class="inline-form" hidden>
+          <fieldset data-requires-unlock disabled>
+            <legend class="sr-only">Add mining pool</legend>
+            <div class="form-grid pool-fields">
+              <label for="pool-url">Pool URL<input id="pool-url" type="text" spellcheck="false" placeholder="pool.example:3333" aria-describedby="pool-url-help pool-error" required></label>
+              <label for="pool-user">Payout address or worker<input id="pool-user" type="text" spellcheck="false" required></label>
+              <label for="pool-pass">Pool password <span class="muted">(optional)</span><input id="pool-pass" type="password"></label>
+            </div>
+            <p id="pool-url-help" class="field-hint">Enter a hostname and port. The dashboard adds stratum+tcp:// when needed.</p>
+            <p id="pool-error" class="field-error" role="alert" hidden></p>
+            <div class="actions"><button class="button" type="submit">Save pool</button><button id="pool-cancel" class="button secondary" type="button">Cancel</button></div>
+          </fieldset>
+        </form>
+      </section>
+
+      <div class="columns">
+        <section class="card">
+          <h2>Mining algorithm</h2>
+          <p>Use a pool for the selected coin. Applying a different algorithm restarts the mining engine.</p>
+          <form id="algorithm-form">
+            <fieldset data-requires-unlock disabled>
+              <legend class="sr-only">Select a mining algorithm</legend>
+              <label for="algo">Algorithm
+                <select id="algo">
+                  <option value="0">Kadena (KDA) · BLAKE2s</option>
+                  <option value="1" selected>Bitcoin (XBT) · BLAKE2b</option>
+                </select>
+              </label>
+              <p id="algorithm-help" class="field-hint"></p>
+              <button id="switch" class="button" type="submit">Apply algorithm</button>
+            </fieldset>
+          </form>
+        </section>
+
+        <section class="card" id="cooling-panel">
+          <h2>Cooling</h2>
+          <p>Automatic fan control follows the hottest chip.</p>
+          <form id="cooling-form">
+            <fieldset data-requires-unlock disabled>
+              <legend class="sr-only">Cooling limit</legend>
+              <label for="chip-target">Hottest-chip limit <output id="chip-target-value" for="chip-target">75°C</output>
+                <input id="chip-target" type="range" min="70" max="80" step="1" value="75" aria-describedby="chip-target-help cooling-state">
+              </label>
+              <p id="chip-target-help" class="field-hint">70–80°C. Saves automatically after one second. Fans stay at or above 30% during mining.</p>
+              <p id="cooling-state" class="field-hint" role="status"></p>
+              <button id="cooling-retry" class="button secondary" type="button" hidden>Retry save</button>
+            </fieldset>
+          </form>
+        </section>
+
+        <section class="card clock-card" id="clock-panel">
+          <h2>Clock &amp; voltage</h2>
+          <p id="live-tuning">Waiting for live clock and voltage.</p>
+          <form id="performance-form">
+            <fieldset data-requires-unlock disabled>
+              <legend class="sr-only">Performance mode</legend>
+              <label class="check"><input id="automatic-tuning" type="checkbox" aria-describedby="performance-help"> Automatic performance</label>
+              <p id="performance-help" class="field-hint">Automatic mode uses full fan speed and adjusts clock to the hottest-chip limit at 430 mV. Off uses SPECTRE defaults. Performance changes can briefly restart mining.</p>
+              <dl class="facts"><div><dt>SPECTRE defaults</dt><dd id="default-tuning">740 MHz · 430 mV</dd></div></dl>
+              <p id="performance-detail" class="field-hint" role="status">Using SPECTRE defaults</p>
+            </fieldset>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <section data-page="network" class="page" aria-label="Network" hidden>
+      <div class="access-note" data-lock-note hidden>
+        <p>Use <strong>Unlock controls</strong> in the header to view or change network settings.</p>
+      </div>
+      <div class="columns">
+        <section class="card">
+          <h2>Ethernet &amp; DNS</h2>
+          <p>After changing the address, reconnect and confirm within two minutes. Otherwise the miner restores the previous settings.</p>
+          <p id="network-state" class="inline-message" hidden></p>
+          <form id="network-form">
+            <fieldset data-requires-unlock disabled>
+              <legend class="sr-only">Wired network settings</legend>
+              <label class="check"><input id="dhcp" type="checkbox" checked> Get an IP address automatically (DHCP)</label>
+              <div id="manual-address" class="form-grid" hidden>
+                <label for="ip">IPv4 address<input id="ip" inputmode="decimal" spellcheck="false"></label>
+                <label for="mask">Subnet mask<input id="mask" inputmode="decimal" spellcheck="false"></label>
+                <label for="gateway">Gateway<input id="gateway" inputmode="decimal" spellcheck="false"></label>
+              </div>
+              <label class="check"><input id="auto-dns" type="checkbox" checked> Get DNS servers automatically</label>
+              <div id="manual-dns" class="form-grid" hidden>
+                <label for="dns1">Primary DNS<input id="dns1" inputmode="decimal" spellcheck="false"></label>
+                <label for="dns2">Backup DNS <span class="muted">(optional)</span><input id="dns2" inputmode="decimal" spellcheck="false"></label>
+              </div>
+              <div class="actions"><button class="button" type="submit">Apply network changes</button><button id="network-confirm" class="button secondary" type="button" hidden>Confirm connection</button></div>
+            </fieldset>
+          </form>
+        </section>
+        <section class="card">
+          <h2>Wi-Fi</h2>
+          <p id="wifi-state">Unlock to check for a wireless adapter.</p>
+          <fieldset id="wifi-controls" data-requires-unlock hidden disabled>
+            <legend class="sr-only">Wireless settings</legend>
+            <label class="check"><input id="wifi-enable" type="checkbox"> Enable Wi-Fi</label>
+            <button id="wifi-scan" class="button secondary" type="button">Scan for networks</button>
+            <div id="wifi-list" class="network-list" aria-label="Discovered networks"></div>
+            <form id="wifi-form">
+              <label for="ssid">Network name (SSID)<input id="ssid" type="text" required></label>
+              <label for="wifi-password">Wi-Fi password<input id="wifi-password" type="password"></label>
+              <div class="actions">
+                <button class="button" type="submit">Connect</button>
+                <button id="wifi-disconnect" class="button secondary" type="button">Disconnect</button>
+                <button id="wifi-forget" class="button secondary" type="button">Forget network</button>
+              </div>
+            </form>
+          </fieldset>
+        </section>
+      </div>
+    </section>
+
+    <section data-page="system" class="page" aria-label="System" hidden>
+      <div class="access-note" data-lock-note hidden>
+        <p>Use <strong>Unlock controls</strong> in the header to view device details or change system settings.</p>
+      </div>
+      <div class="columns">
+        <section class="card">
+          <h2>Device information</h2>
+          <dl id="system-info" class="facts"><div><dt>Device details</dt><dd>Unlock to view</dd></div></dl>
+          <fieldset data-requires-unlock disabled>
+            <legend class="sr-only">Device actions</legend>
+            <label class="check"><input id="identify" type="checkbox"> Flash the miner’s identification LED</label>
+          </fieldset>
+          <details>
+            <summary>Change dashboard password</summary>
+            <form id="password-form">
+              <fieldset data-requires-unlock disabled>
+                <legend class="sr-only">Change dashboard password</legend>
+                <label for="old-password">Current password<input id="old-password" type="password" autocomplete="current-password" required></label>
+                <label for="new-password">New password<input id="new-password" type="password" autocomplete="new-password" required></label>
+                <label for="confirm-password">Confirm new password<input id="confirm-password" type="password" autocomplete="new-password" required></label>
+                <button class="button" type="submit">Change password</button>
+              </fieldset>
+            </form>
+          </details>
+        </section>
+        <section class="card">
+          <h2>Restart &amp; recovery</h2>
+          <p>A restart briefly interrupts mining. Automatic performance recovers interrupted adjustments on startup.</p>
+          <button id="reboot" class="button secondary" type="button" data-requires-unlock disabled>Restart miner</button>
+          <details>
+            <summary>Original firmware maintenance</summary>
+            <p>The installer uses stock Goldshell 2.2.1. Firmware updates or a factory reset through the original interface can remove settings or SSH access.</p>
+            <a id="original-maintenance" href="/legacy.html#/system" target="_blank" rel="noopener" class="text-link">Open original maintenance <span aria-hidden="true">↗</span></a>
+          </details>
+          <details>
+            <summary>Vendor cloud management</summary>
+            <form id="cloud-form">
+              <fieldset data-requires-unlock disabled>
+                <legend class="sr-only">Cloud management settings</legend>
+                <label class="check"><input id="cloud-enable" type="checkbox"> Enable vendor cloud management</label>
+                <label for="cloud-key">Management key<input id="cloud-key" type="password"></label>
+                <button class="button" type="submit">Save cloud settings</button>
+              </fieldset>
+            </form>
+          </details>
+          <details id="rgb-panel" hidden>
+            <summary>RGB lighting</summary>
+            <fieldset data-requires-unlock disabled>
+              <legend class="sr-only">Lighting settings</legend>
+              <label for="rgb-json">Lighting configuration (JSON)<textarea id="rgb-json" rows="6" spellcheck="false"></textarea></label>
+              <button id="rgb-save" class="button" type="button">Save lighting</button>
+            </fieldset>
+          </details>
+        </section>
+      </div>
+    </section>
+
+    <section data-page="diagnostics" class="page" aria-label="Diagnostics" hidden>
+      <section id="recovery" class="card recovery-card" hidden>
+        <h2>Resume after a safety stop</h2>
+        <p id="recovery-reason"></p>
+        <p>Check the fans, cooling, and pool setup. Resume when the cause is resolved.</p>
+        <button id="resume" class="button" type="button" data-requires-unlock disabled>Resume mining</button>
+        <details><summary>Recorded stop details</summary><pre id="recovery-raw" tabindex="0"></pre></details>
+      </section>
+      <div class="access-note" data-lock-note hidden>
+        <p>The saved safety stop is available here. Unlock controls to view stock reports and logs.</p>
+      </div>
+      <section class="card">
+        <h2>Device reports</h2>
+        <form id="diagnostic-form">
+          <div class="report-toolbar">
+            <label for="diagnostic-kind">Report
+              <select id="diagnostic-kind">
+                <option value="safety-stop">Safety stop</option>
+                <option value="icinfo">Live chip temperatures &amp; hardware errors</option>
+                <option value="minersyslog">Mining log</option>
+                <option value="monitorlog">Monitor log</option>
+                <option value="syslog">System log</option>
+                <option value="kmsg">Kernel log</option>
+                <option value="psinfo">Processes</option>
+                <option value="meminfo">Memory</option>
+                <option value="vsinfo">Versions</option>
+                <option value="minerinfo">Mining configuration</option>
+                <option value="minerhistory">Mining history</option>
+              </select>
+            </label>
+            <button id="diagnostic-load" class="button" type="submit">Load report</button>
+            <button id="diagnostic-save" class="button secondary" type="button" disabled>Download report</button>
+          </div>
+        </form>
+        <p id="diagnostic-state" class="inline-message" role="status"></p>
+        <div id="chips" class="chip-grid"></div>
+        <details id="report-panel" hidden>
+          <summary>Raw report</summary>
+          <p>Review the report for addresses and credentials before sharing it.</p>
+          <pre id="diagnostic-output" tabindex="0"></pre>
+        </details>
+      </section>
+    </section>
+
+    <footer>
+      <span>KD BOX XBT Mod <span id="software-version">· Connecting</span></span>
+      <div><a href="/licenses.html">Licenses &amp; attribution</a><a href="https://github.com/Spectre-Works/kdbox-xbt" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+    <a href="https://spectreworks.io" target="_blank" rel="noopener noreferrer">SPECTRE WORKS</a></div>
+    </footer>
+  </main>
+
+  <div id="feedback" class="feedback" data-tone="neutral" hidden>
+    <p id="feedback-message" role="status"></p>
+    <button id="feedback-dismiss" class="button secondary" type="button" aria-label="Dismiss message">×</button>
+  </div>
+  <dialog id="login" aria-labelledby="login-title">
+    <form id="login-form">
+      <h2 id="login-title">Unlock miner controls</h2>
+      <p>Enter the miner’s dashboard password. The default password is 123456789. Use your current password if you’ve changed it.</p>
+      <label for="password">Dashboard password<input id="password" type="password" placeholder="123456789" autocomplete="current-password" autofocus required></label>
+      <p id="login-error" class="field-error" role="alert" hidden></p>
+      <div class="actions"><button id="login-submit" class="button" type="submit">Unlock</button><button id="cancel" class="button secondary" type="button">Cancel</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

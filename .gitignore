@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+backups/
+config.json
+*.pem
+*.key
+*.cpb
+*.ius
+*.img
+*.ext4
+*.sig
+*.crt
+*.cer
+*.der
+firmware-workspaces/
+customer-firmware/
+.local-firmware/
+
+# Private local environments and generated reports
+.venv-*/
+*.log
+.DS_Store
+.installer/

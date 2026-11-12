@@ -1,0 +1,33 @@
+KD BOX XBT Mod — KD BOX Control and KD BOX XBT Installer
+Copyright (c) 2026 SPECTRE WORKS LLC, for its original contributions.
+
+SPECTRE WORKS-owned code and documentation in this version are licensed under
+Apache License 2.0 (LICENSE), except where a separate license is identified.
+SPECTRE WORKS modified the upstream application to add the SSH installer,
+controller, dashboard, safeguards, cooling and performance management.
+
+This product incorporates MIT-licensed upstream code.
+Original upstream source: https://github.com/connorslab/paperclip-flasher
+Initial upstream revision: 5589e0604596722896266f7f0d565c1cc4484118
+The original copyright and permission notice is reproduced unchanged in
+licenses/upstream-MIT.txt. Those upstream terms remain applicable.
+
+Source and build instructions: https://github.com/Spectre-Works/kdbox-xbt
+Publisher: SPECTRE WORKS LLC
+
+SPECTRE WORKS names and emblem identify the publisher. Apache License 2.0
+section 6 does not grant trademark rights. See BRANDING.md for the separate
+brand-asset permission and the policy for modified redistributions. Required
+copyright and attribution notices are not promotional product branding.
+
+Chakra Petch fonts are licensed under SIL Open Font License 1.1; see
+licenses/chakra-petch-OFL.txt. The SPECTRE WORKS emblem, installer wordmark and
+website-derived PNG favicons are reserved brand assets governed by BRANDING.md.
+Go runtime/toolchain notices are included in the build-specific bundled text.
+Desktop Python, uv, Paramiko and their dependencies are downloaded separately,
+not bundled in the prepared product. Their own licenses remain applicable.
+Goldshell firmware, mining engines and signing material are not included.
+
+This is an independent modification. Goldshell and upstream contributors do
+not publish, endorse or support it. This notice is attribution, not an
+additional restriction on rights granted by the applicable software licenses.

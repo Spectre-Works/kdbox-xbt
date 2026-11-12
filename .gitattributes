@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.svg text eol=lf
+controller/web/open-source.txt linguist-generated=true whitespace=-blank-at-eol
+licenses/chakra-petch-OFL.txt whitespace=-blank-at-eol
