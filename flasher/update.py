@@ -75,6 +75,11 @@ def protected_hashes(device):
             if len(raw) > 1 << 20:
                 raise RuntimeError('Native configuration exceeded the read limit.')
             value = json.loads(raw)
+            if name in ('pools.json', '.pools.json') and isinstance(value, list):
+                # This is live pool activity, not an owner setting. Pausing
+                # hashing legitimately changes it; retain all other fields.
+                value = [{k:v for k,v in row.items() if k != 'active'}
+                         if isinstance(row, dict) else row for row in value]
             result[path] = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     return result
 

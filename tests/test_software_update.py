@@ -72,7 +72,7 @@ class FakeUpdateDevice:
         for name in SCRIPTS:self.files[RUNTIME+'/'+name]=b'old script'
         for name in WEB_ASSETS:self.files[WEBROOT+'/'+name]=b'old asset'
         for name in ('pools.json','.pools.json'):
-            self.files['/usr/config/minerd/settings/'+name]=b'[{"url":"pool","user":"owner","pass":"saved"}]'
+            self.files['/usr/config/minerd/settings/'+name]=b'[{"url":"pool","user":"owner","pass":"saved","active":true}]'
         for name in ('cpbsetting.json','.cpbsetting.json'):
             self.files['/usr/config/minerd/settings/'+name]=b'{"manualPowerplan":"740 MHz 0.430 V","tempcontrol":true}'
         for name in ('algosetting.json','.algosetting.json'):
@@ -134,7 +134,7 @@ class UpdateExecution(unittest.TestCase):
             root=Path(folder);target=update_fixture(root);d=FakeUpdateDevice(target,True)
             before=protected_hashes(d)
             path='/usr/config/minerd/settings/pools.json'
-            d.files[path]=b'[ { "pass": "saved", "user": "owner", "url": "pool" } ]\n'
+            d.files[path]=b'[ { "pass": "saved", "user": "owner", "url": "pool", "active": false } ]\n'
             for name in ('cpbsetting.json','algosetting.json'):
                 key='/usr/config/minerd/settings/'+name
                 d.files[key]=json.dumps(json.loads(d.files[key]),indent=4,sort_keys=True).encode()

@@ -272,5 +272,7 @@ startup registration and configuration are not rewritten. Verification failures
 restore application files and retain the stop. Resume always remains an explicit
 operator action. Remote file paths use POSIX semantics on every installer host.
 Native pool, clock and algorithm files are compared as canonical JSON so
-stock-service key-order/whitespace rewrites do not block updates; every value and
-list position is preserved. Credentials, Wi-Fi and stop records remain byte-exact.
+stock-service key-order/whitespace rewrites do not block updates. All configuration
+values and list positions are checked; the stock pool `active` telemetry flag is
+excluded because pausing mining changes it. Credentials, Wi-Fi and stop records
+remain byte-exact.
