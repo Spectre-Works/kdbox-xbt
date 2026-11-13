@@ -116,6 +116,7 @@ class WizardTests(unittest.TestCase):
         device.verify_base.return_value = MINER
         device.api.return_value = {'JWT Token': 'token'}
         device.installation_state.return_value = 'installed'
+        device.build_comparison.return_value = {'matches': True}
         wizard = Wizard(ROOT, Mock(return_value=device))
         wizard.update(stage='select', devices=[MINER])
         wizard.action('connect', dict(host=MINER['host'], ssh_password='ssh', web_password='web', authorized=True))

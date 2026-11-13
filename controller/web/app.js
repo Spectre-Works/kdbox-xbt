@@ -380,6 +380,11 @@ function renderStatus() {
     detail = 'Add your mining pool, then resume mining. Mining is paused until setup is complete.';
     tone = 'warning';
     next = ['#mining', 'Set up a pool'];
+  } else if (online && s.halted && s.message === 'Paused for a software update; review settings before resuming') {
+    title = 'Software update paused mining';
+    detail = 'Review your settings, pool and diagnostics, then resume mining when ready.';
+    tone = 'warning';
+    next = ['#mining', 'Review mining setup'];
   } else if (online && s.halted) {
     title = 'Mining paused by a safety stop';
     detail = stopReason(s.message);
@@ -413,6 +418,7 @@ function renderStatus() {
   const compact = {
     'Mining paused by a safety stop': 'Safety stop',
     'Waiting for pool setup': 'Pool setup',
+    'Software update paused mining': 'Update paused',
     'Checking chip temperatures': 'Starting XBT',
     'No mining pools configured': 'No pool',
     'Waiting for mining telemetry': 'Telemetry delayed',

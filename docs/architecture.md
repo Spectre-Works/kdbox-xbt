@@ -251,3 +251,23 @@ rather than a thermal-fault presentation. Startup also detects an empty list and
 waits for pool setup. No-pool Resume requests are rejected before any engine
 change. Adding a pool does not clear a stop or automatically resume. A pre-existing
 safety-stop record takes precedence and remains unchanged by pool edits.
+
+## Software build updates
+
+Working installations are compared with the validated package using full source
+commit, version, dirty state and actual controller SHA-256. A changed revision
+can be updated without changing the human-readable version. Missing commit
+metadata does not silently count as an exact match to a versioned build.
+
+The explicit update review captures the target identity; a package changed after
+review is rejected before device changes. Updates require the pinned stock base,
+working watchdog/controller ownership, current owner credentials, no pending
+performance/network adjustment, private verified backup and staging space.
+Application files are transferred and checked before mining is paused. The stock
+supervisor and engines are held off, fans are set to full, and the watchdog stays
+running. Existing stop records remain byte-identical; an active miner receives a
+persisted update pause. The controller and UI are atomically replaced and checked
+against the target build. Passwords, pools, approved tuning, algorithm, network,
+startup registration and configuration are not rewritten. Verification failures
+restore application files and retain the stop. Resume always remains an explicit
+operator action. Remote file paths use POSIX semantics on every installer host.

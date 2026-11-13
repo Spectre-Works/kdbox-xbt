@@ -70,7 +70,7 @@ function recovery() {
 }
 function render() {
   const stage = state.stage;
-  const activeStep = ({welcome: 0, select: 0, searching: 0, connecting: 1, identity: 1, review: 2, repair: 2, installing: 2, done: 3, existing: 3}[stage] ?? (state.backup ? 2 : 0));
+  const activeStep = ({welcome: 0, select: 0, searching: 0, connecting: 1, identity: 1, review: 2, repair: 2, update: 2, installing: 2, done: 3, existing: 3}[stage] ?? (state.backup ? 2 : 0));
   document.querySelectorAll(".wizard-progress li").forEach((li, index) => {
     li.classList.toggle("complete", index < activeStep);
     if (index === activeStep) li.setAttribute("aria-current", "step");
@@ -124,6 +124,10 @@ function render() {
   } else if (stage === "connecting") {
     content.innerHTML =
       "<h2>Checking your miner…</h2><p>Verifying the running firmware, board, CPU and stock engine. Keep this window open.</p>";
+  } else if (stage === "update") {
+    const label = build => `${esc(build.version)} · <code>${esc(build.commit)}</code>${build.dirty ? " · modified build" : ""}`;
+    content.innerHTML = `<h2>Update KD BOX XBT on ${esc(state.host)}</h2><p>The miner and this package have different builds, even if their version numbers are the same.</p><dl><dt>Installed build</dt><dd>${label(state.builds.installed)}</dd><dt>Package build</dt><dd>${label(state.builds.package)}</dd></dl><p>Your passwords, pools, algorithm, cooling and performance settings are preserved. A private recovery backup is saved first.</p><p>Mining pauses for the update and stays paused for review. An existing safety stop is kept; the installer never clears it or resumes mining automatically.</p><label class="acknowledgement"><input id="updateAck" type="checkbox">I authorize this software update, have reliable power and recovery access, and understand mining will pause.</label><button id="update">Back up &amp; update KD BOX XBT</button>${recovery()}`;
+    document.querySelector("#update").onclick = () => action("install", {authorized: document.querySelector("#updateAck").checked});
   } else if (stage === "review" || stage === "repair") {
     const repair = stage === "repair";
     content.innerHTML = `<h2>${repair ? "Repair previous installation on" : "Ready to install on"} ${esc(state.host)}</h2>${repair ? "<p>The previous mod is incomplete or is not responding. A stock firmware reflash can leave its settings behind while removing the dashboard and startup hook. Repair restores the application and keeps saved passwords, cooling, performance and algorithm settings. KDA pools are cleared if repair switches the miner to XBT. An existing safety stop must be inspected before proceeding.</p>" : ""}<dl><dt>Model</dt><dd>${esc(state.verified.model)}</dd><dt>Stock firmware</dt><dd>${esc(state.verified.firmware)}</dd><dt>Board</dt><dd>${esc(state.verified.mcbversion)}</dd><dt>Passwords & pools</dt><dd>Passwords are unchanged. KDA pools are backed up and cleared before switching to XBT; existing XBT pools are retained.</dd></dl><p>${repair ? "A saved algorithm is retained during repair." : "New installations select Bitcoin (XBT) automatically. When switching from KDA, add your XBT pool in the dashboard before resuming mining."}</p><p>A private recovery backup will be saved automatically before application files are installed. This does not flash firmware or replace the bootloader.</p><label class="acknowledgement"><input id="installAck" type="checkbox">I own or am authorized to modify this miner, have reliable power, cooling and recovery access, and accept the risk of interruption, damage or a bricked miner. Recovery is not guaranteed.</label><button id="install">${repair ? "Back up & repair KD BOX XBT" : "Back up & install KD BOX XBT"}</button>${recovery()}`;
@@ -137,6 +141,8 @@ function render() {
       });
   } else if (stage === "installing") {
     content.innerHTML = `<h2>Working on your miner…</h2><p>Leave the installer running and keep the miner powered. Do not restart or repeat installation.</p>${state.backup ? `<p>Private recovery backup:</p><code>${esc(state.backup)}</code>` : ""}`;
+  } else if (stage === "done" && state.operation === "update") {
+    content.innerHTML = `<h2>Update complete</h2><p>Build ${esc(state.builds.package.version)} · <code>${esc(state.builds.package.commit)}</code> is installed. Your settings and any existing safety stop were preserved.</p><a class="button" href="http://${esc(state.host)}/" target="_blank" rel="noopener noreferrer">Open miner dashboard</a><p>Mining remains paused. Review the pool, algorithm and diagnostics before choosing Resume mining. Existing safety stops still require inspection.</p><p>Keep this recovery backup private:</p><code>${esc(state.backup)}</code>${recovery()}`;
   } else if (stage === "existing" || stage === "done") {
     content.innerHTML = `<h2>${stage === "existing" ? "Already installed" : "All done"}</h2><a class="button" href="http://${esc(state.host)}/" target="_blank" rel="noopener noreferrer">Open miner dashboard</a>${stage === "existing" || state.operation === "repair" || state.operation === "restore" ? "<p>Open the dashboard with your unchanged password, check the selected algorithm and configure its matching pool, then supervise startup. Verify all chip temperatures and accepted shares. Inspect any safety stop before resuming.</p>" : "<p>Unlock Mining with your unchanged dashboard password. Bitcoin (XBT) is selected by default. Add or check your XBT pool and payout/worker, resume mining, then verify accepted shares and all chip temperatures while supervising the miner.</p>"}${state.backup ? `<p>Keep this recovery backup private:</p><code>${esc(state.backup)}</code>` : ""}${stage === "existing" ? recovery() : ""}`;
   }
@@ -162,6 +168,7 @@ async function poll() {
       state.stage +
       JSON.stringify(state.devices) +
       JSON.stringify(state.identity) +
+      JSON.stringify(state.builds) +
       String(state.backup);
     if (key !== rendered) {
       rendered = key;

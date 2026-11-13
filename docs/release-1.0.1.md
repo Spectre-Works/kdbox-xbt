@@ -56,9 +56,14 @@ stock Goldshell 2.2.1**. Obtain that firmware directly from Goldshell using the
 or installed by this tooling. Other KD BOX models and stock 2.2.3/2.2.4 are not
 supported for new installations.
 
-The installer detects a working existing installation and offers dashboard and
-recovery access; it does not automatically overwrite that installation. These
-release downloads do not add an in-place update wizard.
+The installer compares an existing controller with the package's Git revision,
+version, modified-build flag and binary SHA-256. Matching builds offer dashboard
+and recovery access. Different builds offer **Back up & update KD BOX XBT**,
+including builds sharing the same version string. The review shows both revisions.
+Updates back up the installation, stage and verify application files, preserve
+settings and existing stops, and leave mining paused for inspection. The installer
+never clears a safety stop or resumes mining automatically. Failed verification
+restores the previous application files while retaining the pause.
 
 ## Validation and operating limits
 

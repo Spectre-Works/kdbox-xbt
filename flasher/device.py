@@ -263,6 +263,21 @@ class Device:
             raise RuntimeError('File transfer verification failed. The destination file was not replaced; do not restart the miner.')
         self.command('mv ' + shlex.quote(remote + '.kdbox-xbt-new') + ' ' + shlex.quote(remote))
 
+    def build_comparison(self, root):
+        from .update import compare_build
+        return compare_build(self, root)
+
+    def update_software(self, root, password, backup_dir, progress=print, *, owner_authorized=False, target=None):
+        from .update import update_device
+        try:
+            return update_device(self, root, password, backup_dir, progress,
+                                 owner_authorized=owner_authorized, target=target)
+        except Exception as exc:
+            if getattr(self, 'update_started', False):
+                raise RuntimeError('Software update stopped. Inspect the miner and dashboard before resuming or retrying. '
+                                   'Recovery backup: '+str(backup_dir)+'. Details: '+str(exc)) from None
+            raise
+
     def require_space(self, path, required_bytes):
         try:
             available = int(self.command('df -Pk ' + shlex.quote(path)).splitlines()[-1].split()[3]) * 1024

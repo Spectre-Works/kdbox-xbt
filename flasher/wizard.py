@@ -143,7 +143,16 @@ class Wizard:
                 installation = self.device.installation_state()
                 verified = {k: info.get(k) for k in ('model', 'firmware', 'mcbversion')}
                 if installation == 'installed':
-                    self.update(stage='existing', message='KD BOX XBT is already installed. Open its dashboard, or restore a recovery backup below.', verified=verified)
+                    builds = self.device.build_comparison(self.root) if self.snapshot()['payload_ready'] else None
+                    if builds is not None and builds['matches'] is not True:
+                        binary = validate_payload(self.root)
+                        self.device.require_space('/usr/config', len(binary) + 1024 * 1024)
+                        self.device.require_space('/root', sum((self.root/'controller/web'/n).stat().st_size for n in WEB_ASSETS)+1024*1024)
+                        self.web_password = web
+                        self.update(stage='update', builds=builds, verified=verified,
+                                    message='A different build is installed. Review the revisions and confirm the software update.')
+                    else:
+                        self.update(stage='existing', builds=builds, message='This build is already installed. Open its dashboard, or restore a recovery backup below.' if builds else 'KD BOX XBT is already installed. A complete installer package is needed to compare builds.', verified=verified)
                     return
                 if installation == 'repair' and not self.snapshot()['payload_ready']:
                     self.update(stage='repair', verified=verified, message='Previous installation files were found, but the dashboard or startup is incomplete. Use a complete installer package to repair, or restore a backup below.')
@@ -157,28 +166,33 @@ class Wizard:
                 self.web_password = web
             self.start(connect)
         elif action == 'install':
-            if (self.snapshot()['stage'] not in ('review', 'repair') or not self.snapshot()['payload_ready']
+            if (self.snapshot()['stage'] not in ('review', 'repair', 'update') or not self.snapshot()['payload_ready']
                     or not self.device or data.get('authorized') is not True):
                 raise ValueError('Review the verified miner and accept the installation conditions first.')
             repair = self.snapshot()['stage'] == 'repair'
+            update = self.snapshot()['stage'] == 'update'
+            target = self.snapshot().get('builds', {}).get('package') if update else None
             def install():
                 self.passwords[:] = [self.web_password]
-                self.update(stage='installing', operation='repair' if repair else 'install', message='Creating your private recovery backup…')
+                self.update(stage='installing', operation='update' if update else 'repair' if repair else 'install', message='Creating your private recovery backup…')
                 backup = backup_root() / datetime.now().strftime('%Y%m%d-%H%M%S-%f')
                 # Show the recovery location even if the install fails midway.
                 self.update(backup=str(backup))
                 try:
-                    options = {'repair_authorized': True} if repair else {}
-                    self.device.install(self.root, self.web_password, backup, self.progress, owner_authorized=True, **options)
+                    if update:
+                        self.device.update_software(self.root, self.web_password, backup, self.progress, owner_authorized=True, target=target)
+                    else:
+                        options = {'repair_authorized': True} if repair else {}
+                        self.device.install(self.root, self.web_password, backup, self.progress, owner_authorized=True, **options)
                 finally:
                     self.refresh_backups()
-                self.update(stage='done', message='Repair complete. Open the dashboard to check the selected algorithm, configure its pool and supervise startup.' if repair else 'Installation complete. Open the dashboard to configure and verify XBT mining.')
+                self.update(stage='done', message='Update complete. Settings and stops were preserved. Review the dashboard before resuming mining.' if update else 'Repair complete. Open the dashboard to check the selected algorithm, configure its pool and supervise startup.' if repair else 'Installation complete. Open the dashboard to configure and verify XBT mining.')
                 self.web_password = ''
                 self.device.close()
                 self.device = None
             self.start(install)
         elif action == 'restore':
-            if self.snapshot()['stage'] not in ('review', 'repair', 'existing') or not self.device or data.get('authorized') is not True:
+            if self.snapshot()['stage'] not in ('review', 'repair', 'existing', 'update') or not self.device or data.get('authorized') is not True:
                 raise ValueError('Connect to your miner and confirm recovery first.')
             path = self.backups.get(data.get('backup'))
             if path is None:

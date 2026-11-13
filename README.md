@@ -115,8 +115,14 @@ missing host utilities or no graphical browser can need manual setup.
    choose **Back up & install KD BOX XBT**. Keep power on and wait for completion.
    The tool saves and verifies a private recovery snapshot before application writes.
 
-A complete installation with a responding controller opens a dashboard/recovery
-flow instead of reinstalling. If a stock reflash or interrupted installation left
+A complete installation is compared with the package using its full Git commit,
+version, modified-build flag and controller SHA-256. An exact match opens the
+**Already installed** dashboard/recovery flow. A different build offers
+**Back up & update KD BOX XBT**, including when both builds report version 1.0.1.
+The update review shows both revisions. Updates preserve passwords, pools,
+algorithm, cooling, tuning and existing safety stops. Mining pauses for the update
+and remains paused for inspection; the installer does not resume it automatically.
+A complete installer package is required to compare or update a build. If a stock reflash or interrupted installation left
 files behind but removed the dashboard/startup, choose **Back up & repair KD BOX XBT**
 after reviewing the separate repair confirmation. Repair creates a new private
 snapshot, restores application/startup files and keeps the saved configuration,
