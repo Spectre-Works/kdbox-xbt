@@ -172,7 +172,7 @@ class Wizard:
                     self.device.install(self.root, self.web_password, backup, self.progress, owner_authorized=True, **options)
                 finally:
                     self.refresh_backups()
-                self.update(stage='done', message='Repair complete. Saved settings were preserved. Open the dashboard and supervise startup.' if repair else 'Installation complete. Open the dashboard to configure and verify XBT mining.')
+                self.update(stage='done', message='Repair complete. Open the dashboard to check the selected algorithm, configure its pool and supervise startup.' if repair else 'Installation complete. Open the dashboard to configure and verify XBT mining.')
                 self.web_password = ''
                 self.device.close()
                 self.device = None

@@ -90,8 +90,11 @@ function renderPools(force = false) {
       for (const [label, disabled, callback] of [
         ['Move up', index === 0, () => editPool(index, index - 1, shownPools)],
         ['Move down', index === poolView.length - 1, () => editPool(index, index + 1, shownPools)],
-        ['Remove', poolView.length === 1, () => {
-          if (confirm('Remove this pool from the miner?')) editPool(index, null, shownPools);
+        ['Remove', false, () => {
+          const message = poolView.length === 1
+            ? 'Remove the last pool? Mining will have no configured pool until you add one.'
+            : 'Remove this pool from the miner?';
+          if (confirm(message)) editPool(index, null, shownPools);
         }],
       ]) {
         const button = document.createElement('button');

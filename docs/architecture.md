@@ -235,3 +235,17 @@ is XBT and stays disabled before connection; confirmed controller status then
 controls its value. A requested change is not displayed as applied until fresh
 controller readback returns. Application success is distinct from mining or share
 acceptance, which still require telemetry and pool checks.
+
+## Pool configuration during installation
+
+Before an installation changes KDA to XBT, its verified private backup captures
+the original pool files. The installer clears the native pool list and confirms
+it is empty before writing/applying the XBT selection. A failed readback prevents
+the switch. Existing XBT pools and repairs retaining KDA do not take that path.
+
+The controller permits an empty pool list. Removing its last pool pauses mining
+using the normal persisted stop mechanism, with a distinct pool-setup status
+rather than a thermal-fault presentation. Startup also detects an empty list and
+waits for pool setup. No-pool Resume requests are rejected before any engine
+change. Adding a pool does not clear a stop or automatically resume. A pre-existing
+safety-stop record takes precedence and remains unchanged by pool edits.

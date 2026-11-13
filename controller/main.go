@@ -577,7 +577,14 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 			err = c.setAutomaticPerformance(*q.Automatic)
 		}
 	case r.URL.Path == "/api/resume" && r.Method == "POST":
-		err = c.resumeMining()
+		var pools []map[string]any
+		pools, err = c.savedPools()
+		if err == nil && len(pools) == 0 {
+			err = errors.New("add a mining pool before resuming")
+		}
+		if err == nil {
+			err = c.resumeMining()
+		}
 	case r.URL.Path == "/api/algorithm" && r.Method == "POST":
 		var q struct {
 			ID int `json:"id"`
@@ -747,6 +754,14 @@ func main() {
 	}
 	if e = c.restoreAlgorithm(); e != nil {
 		c.stop("Could not verify the selected mining algorithm: " + e.Error())
+	}
+	if !c.halted {
+		pools, poolErr := c.savedPools()
+		if poolErr != nil {
+			c.stop("Could not verify configured mining pools")
+		} else if len(pools) == 0 {
+			c.stop(poolSetupPause)
+		}
 	}
 	if c.cfg.AutomaticTuning && c.algorithm != 1 {
 		c.stop("Automatic performance requires XBT; turn it off before selecting another algorithm")

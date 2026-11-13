@@ -31,6 +31,17 @@ type NetworkSettings struct {
 	IP   map[string]string `json:"setIP"`
 }
 
+const poolSetupPause = "No mining pools configured; add a pool before resuming"
+
+func (c *Controller) savedPools() ([]map[string]any, error) {
+	b, err := c.native("GET", "/mcb/pools", nil, false)
+	var pools []map[string]any
+	if err == nil {
+		err = json.Unmarshal(b, &pools)
+	}
+	return pools, err
+}
+
 func (n NetworkSettings) validate() error {
 	for k, v := range n.IP {
 		if k != "IPv4addr" && k != "Subnetmask" && k != "Router" && k != "DNS1" && k != "DNS2" {
@@ -195,27 +206,60 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 			Pass string `json:"pass"`
 		}
 		e = json.Unmarshal(body, &p)
-		if e == nil {
+		if e == nil && path == "pool-add" {
 			var address string
 			address, e = normalizePool(p.URL, p.User)
-			if path == "pool-add" {
-				p.URL = address
-			}
+			p.URL = address
 		}
+		var selected map[string]any
+		lastPool := false
 		if e == nil {
 			current, err := c.native("GET", "/mcb/pools", nil, false)
 			var entries []map[string]any
 			if err != nil || json.Unmarshal(current, &entries) != nil {
 				e = errors.New("could not read current pools")
-			} else if path == "pool-delete" && len(entries) <= 1 {
-				e = errors.New("keep at least one pool")
 			} else if path == "pool-add" && len(entries) >= 10 {
 				e = errors.New("maximum of 10 pools")
+			} else if path == "pool-delete" {
+				lastPool = len(entries) == 1
+				for _, entry := range entries {
+					if entry["url"] == p.URL && entry["user"] == p.User {
+						selected = entry
+						break
+					}
+				}
+				if selected == nil {
+					e = errors.New("the pool list changed; refresh it before removing a pool")
+				}
 			}
 		}
 		if e == nil {
 			if path == "pool-delete" {
-				_, e = c.native("PUT", "/mcb/delpool", body, true)
+				if lastPool {
+					_, e = c.native("PUT", "/mcb/pools", []map[string]any{}, true)
+				} else {
+					_, e = c.native("PUT", "/mcb/delpool", selected, true)
+				}
+				if e == nil {
+					var remaining []map[string]any
+					var saved []byte
+					saved, e = c.native("GET", "/mcb/pools", nil, false)
+					if e == nil {
+						e = json.Unmarshal(saved, &remaining)
+					}
+					if e != nil {
+						e = errors.New("could not confirm pool removal; refresh the list before trying again")
+					} else {
+						for _, entry := range remaining {
+							if entry["url"] == p.URL && entry["user"] == p.User {
+								e = errors.New("the miner did not remove the pool; refresh the list before trying again")
+							}
+						}
+						if e == nil && len(remaining) == 0 && !c.halted {
+							c.stop(poolSetupPause)
+						}
+					}
+				}
 			} else {
 				_, e = c.native("PUT", "/mcb/newpool", p, true)
 			}
@@ -223,8 +267,10 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 	case "pools":
 		var pools []map[string]any
 		e = json.Unmarshal(body, &pools)
-		if len(pools) < 1 || len(pools) > 10 {
-			e = errors.New("keep between 1 and 10 pools")
+		if e == nil && pools == nil {
+			e = errors.New("send a pool list; use an empty array to clear it")
+		} else if len(pools) > 10 {
+			e = errors.New("maximum of 10 pools")
 		}
 		if e == nil {
 			for i := range pools {
@@ -237,6 +283,15 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 			}
 			if e == nil {
 				_, e = c.native("PUT", "/mcb/pools", pools, true)
+				if e == nil && len(pools) == 0 {
+					var saved []map[string]any
+					saved, e = c.savedPools()
+					if e != nil || len(saved) != 0 {
+						e = errors.New("could not confirm clearing pools; refresh the list before trying again")
+					} else if !c.halted {
+						c.stop(poolSetupPause)
+					}
+				}
 			}
 		}
 	case "cloud", "rgb":

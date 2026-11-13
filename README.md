@@ -122,9 +122,12 @@ after reviewing the separate repair confirmation. Repair creates a new private
 snapshot, restores application/startup files and keeps the saved configuration,
 qualified clock ceiling, cooling limit and algorithm. It does not clear safety
 stops; inspect any existing stop before proceeding. A missing payload still allows
-backup recovery, but cannot repair application files. Passwords and pool settings
-are kept. New installations select Bitcoin (XBT); repairs retain the saved
-algorithm choice. The installer never silently resumes a safety-stopped miner.
+backup recovery, but cannot repair application files. Passwords are unchanged.
+New installations select Bitcoin (XBT); repairs retain the saved algorithm choice.
+When installation switches a miner from KDA to XBT, its old KDA pools are included
+in the private backup and cleared before XBT is applied. Existing XBT pools are
+retained. A miner with no configured pools waits for pool setup with mining paused;
+add an XBT pool and resume when ready. The installer never silently resumes a safety-stopped miner.
 
 If installation stops after writes began, **do not reboot or blindly retry**.
 Keep the reported backup path and follow [recovery guidance](docs/installation-handoff.md).
@@ -134,7 +137,7 @@ Keep the reported backup path and follow [recovery guidance](docs/installation-h
 Choose **Open miner dashboard**, or visit `http://MINER-IP/`.
 
 1. Unlock controls using your unchanged dashboard password.
-2. In **Mining Setup**, check the pool address, priority and payout/worker. Select
+2. In **Mining Setup**, add or check the XBT pool address, priority and payout/worker. Select
    **Bitcoin (XBT)** selection. New installations select it automatically; apply
    a different algorithm only if intended. Resume mining if the dashboard asks
    for an inspection/confirmation. Do not clear a safety stop without inspection.
@@ -177,6 +180,10 @@ is tracked by the controller and survives browser refreshes. The footer shows
 version **1.0.1** followed by the short source commit; include both in issue reports.
 Hashrate history offers Auto, 1h, 3h,
 6h, 12h and 24h views. [Cooling details](docs/cooling-control.md)
+
+An unlocked dashboard can remove any saved pool, including the last one. Removing
+the last pool pauses mining until a pool is added and mining is resumed. Pool
+changes do not clear an existing safety stop.
 
 The unlocked **Network** page shows the connected Wi-Fi network, its IP address
 and signal strength. Status refreshes every five seconds while the page is visible.

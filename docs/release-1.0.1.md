@@ -30,6 +30,18 @@ mod-specific runtime, startup or branding evidence; complete file and controller
 checks still identify an already-installed miner. Genuine remnants retain the
 separate repair confirmation, private backup and saved-settings protections.
 
+## Pool setup
+
+- Any saved pool can be removed with unlocked controls, including the final pool
+  and malformed old entries. The controller confirms native removal before
+  reporting success. Existing safety stops are preserved.
+- Installation backs up and clears KDA pools before switching the miner to XBT,
+  and verifies an empty list before applying XBT. Existing XBT pool configurations
+  and an explicitly retained KDA selection are preserved.
+- With no configured pools, mining pauses and the dashboard shows **Waiting for
+  pool setup**. Add the appropriate pool and resume mining when ready. Resume
+  requires at least one configured pool; thermal and watchdog protections stay active.
+
 ## Download and installation
 
 Read the [README](../README.md), then download `KDBoxXBT-1.0.1.zip` and

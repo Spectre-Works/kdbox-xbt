@@ -375,6 +375,11 @@ function renderStatus() {
     title = 'Controller offline';
     detail = 'Check the miner’s power and network connection.';
     tone = 'danger';
+  } else if (online && s.halted && s.message === 'No mining pools configured; add a pool before resuming') {
+    title = 'Waiting for pool setup';
+    detail = 'Add your mining pool, then resume mining. Mining is paused until setup is complete.';
+    tone = 'warning';
+    next = ['#mining', 'Set up a pool'];
   } else if (online && s.halted) {
     title = 'Mining paused by a safety stop';
     detail = stopReason(s.message);
@@ -407,6 +412,7 @@ function renderStatus() {
 
   const compact = {
     'Mining paused by a safety stop': 'Safety stop',
+    'Waiting for pool setup': 'Pool setup',
     'Checking chip temperatures': 'Starting XBT',
     'No mining pools configured': 'No pool',
     'Waiting for mining telemetry': 'Telemetry delayed',
