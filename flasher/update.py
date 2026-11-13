@@ -64,6 +64,9 @@ def protected_hashes(device):
         raise RuntimeError('Protected settings verification was incomplete.')
     # The stock service rewrites equivalent native JSON with different key order
     # or whitespace. Preserve every value and list position, not serialization.
+    interface_macs = {line.strip().lower() for line in device.command(
+        'for address in /sys/class/net/*/address; do cat "$address"; done').splitlines()
+        if re.fullmatch(r'(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}', line.strip())}
     with device.client.open_sftp() as sftp:
         for name in ('pools.json', '.pools.json', 'cpbsetting.json', '.cpbsetting.json',
                      'algosetting.json', '.algosetting.json'):
@@ -75,6 +78,11 @@ def protected_hashes(device):
             if len(raw) > 1 << 20:
                 raise RuntimeError('Native configuration exceeded the read limit.')
             value = json.loads(raw)
+            if (name in ('cpbsetting.json', '.cpbsetting.json') and isinstance(value, dict)
+                    and isinstance(value.get('name'), str) and value['name'].lower() in interface_macs):
+                # Stock reads can substitute Ethernet or Wi-Fi MACs for the
+                # default display name. Custom names remain protected.
+                value = dict(value, name='<interface MAC>')
             if name in ('pools.json', '.pools.json') and isinstance(value, list):
                 # This is live pool activity, not an owner setting. Pausing
                 # hashing legitimately changes it; retain all other fields.

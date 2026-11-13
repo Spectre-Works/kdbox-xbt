@@ -276,3 +276,6 @@ stock-service key-order/whitespace rewrites do not block updates. All configurat
 values and list positions are checked; the stock pool `active` telemetry flag is
 excluded because pausing mining changes it. Credentials, Wi-Fi and stop records
 remain byte-exact.
+The stock default power-plan display name can alternate between the miner's
+Ethernet and Wi-Fi MAC addresses; those verified interface identities are treated
+as display metadata. An owner-supplied custom name remains protected.

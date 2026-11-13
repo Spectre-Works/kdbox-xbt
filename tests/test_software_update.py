@@ -74,7 +74,7 @@ class FakeUpdateDevice:
         for name in ('pools.json','.pools.json'):
             self.files['/usr/config/minerd/settings/'+name]=b'[{"url":"pool","user":"owner","pass":"saved","active":true}]'
         for name in ('cpbsetting.json','.cpbsetting.json'):
-            self.files['/usr/config/minerd/settings/'+name]=b'{"manualPowerplan":"740 MHz 0.430 V","tempcontrol":true}'
+            self.files['/usr/config/minerd/settings/'+name]=b'{"manualPowerplan":"740 MHz 0.430 V","tempcontrol":true,"name":"02:00:00:00:00:01"}'
         for name in ('algosetting.json','.algosetting.json'):
             self.files['/usr/config/minerd/settings/'+name]=b'{"algo_select":1,"algos":[]}'
         if stopped:self.files[RUNTIME+'/halted.json']=b'{"reason":"original thermal stop"}'
@@ -108,6 +108,8 @@ class FakeUpdateDevice:
         return destination
 
     def command(self,command):
+        if command.startswith('for address in /sys/class/net/'):
+            return '02:00:00:00:00:01\n02:00:00:00:00:02\n'
         if command.startswith('if test -f '):
             rows=[]
             for path in PROTECTED:
@@ -138,11 +140,17 @@ class UpdateExecution(unittest.TestCase):
             for name in ('cpbsetting.json','algosetting.json'):
                 key='/usr/config/minerd/settings/'+name
                 d.files[key]=json.dumps(json.loads(d.files[key]),indent=4,sort_keys=True).encode()
+            key='/usr/config/minerd/settings/cpbsetting.json'
+            same=json.loads(d.files[key]);same['name']='02:00:00:00:00:02'
+            d.files[key]=json.dumps(same).encode()
             self.assertEqual(protected_hashes(d),before)
             d.files[path]=b'[{"pass":"saved","user":"different-worker","url":"pool"}]'
             self.assertNotEqual(protected_hashes(d)[path],before[path])
             key='/usr/config/minerd/settings/cpbsetting.json'
-            d.files[key]=b'{"manualPowerplan":"755 MHz 0.430 V","tempcontrol":true}'
+            different=json.loads(d.files[key]);different['manualPowerplan']='755 MHz 0.430 V'
+            d.files[key]=json.dumps(different).encode()
+            self.assertNotEqual(protected_hashes(d)[key],before[key])
+            different=dict(same,name='Custom owner name');d.files[key]=json.dumps(different).encode()
             self.assertNotEqual(protected_hashes(d)[key],before[key])
 
     def test_readback_retries_refused_ssh_http_channel_during_controller_restart(self):
