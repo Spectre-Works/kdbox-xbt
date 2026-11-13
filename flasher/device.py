@@ -229,7 +229,11 @@ class Device:
         checks.update({name: 'test -s ' + shlex.quote('/root/yottamc/' + name) for name in WEB_ASSETS})
         present = set(self.command('\n'.join(
             f'if {check}; then echo {shlex.quote(name)}; fi' for name, check in checks.items()) + '\ntrue').splitlines())
-        if not present:
+        # Stock firmware also has index.html and may share generic asset names.
+        # Require a mod-specific marker before treating any incomplete files as
+        # recovery evidence; the full asset list below checks completeness only.
+        markers = {'directory', 'config', 'controller', 'startup', 'hook', 'dashboard', 'spectre-logo.png'}
+        if not present.intersection(markers):
             return 'new'
         icon_names = {'favicon-32.png', 'favicon-48.png'}
         required = set(checks) - icon_names - {'previous-favicon'}

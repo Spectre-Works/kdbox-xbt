@@ -34,6 +34,21 @@ class InstallationDetection(unittest.TestCase):
                 self.assertEqual(d.installation_state(), result)
                 d.api.assert_not_called()
 
+    def test_stock_dashboard_and_generic_assets_are_not_previous_installations(self):
+        for flags in (['index.html'], ['previous-favicon'],
+                      [name for name in WEB_ASSETS if name != 'spectre-logo.png'] + ['previous-favicon']):
+            with self.subTest(flags=flags):
+                d = self.device(flags)
+                self.assertEqual(d.installation_state(), 'new')
+                d.api.assert_not_called()
+
+    def test_mod_specific_remnants_still_require_repair(self):
+        for marker in ('directory', 'config', 'controller', 'startup', 'hook', 'dashboard', 'spectre-logo.png'):
+            with self.subTest(marker=marker):
+                d = self.device([marker, 'index.html'])
+                self.assertEqual(d.installation_state(), 'repair')
+                d.api.assert_not_called()
+
     def test_working_previous_favicon_version_is_still_installed(self):
         flags=[f for f in FLAGS if not f.startswith('favicon-')]+['previous-favicon']
         self.assertEqual(self.device(flags).installation_state(),'installed')
@@ -66,6 +81,21 @@ class InstallationDetection(unittest.TestCase):
 
 
 class RepairWizard(unittest.TestCase):
+    def test_stock_dashboard_reaches_new_install_review(self):
+        with patch('flasher.wizard.local_networks', return_value=[]), patch('flasher.wizard.backup_root', return_value=ROOT/'.not-a-real-backup-dir'), patch('flasher.wizard.validate_payload', return_value=b'controller'):
+            d = Mock()
+            d.verify_base.return_value = MINER
+            d.api.return_value = {'JWT Token': 'private'}
+            d.command.return_value = 'index.html\n'
+            d.installation_state = lambda: Device.installation_state(d)
+            w = Wizard(ROOT, Mock(return_value=d))
+            self.addCleanup(w.close)
+            w.update(devices=[MINER])
+            w.action('connect', dict(host=MINER['host'], authorized=True, web_password='owner'))
+            state = wait_for(w, 'review')
+            self.assertNotIn('repair', state['message'].lower())
+            d.install.assert_not_called()
+
     def test_repair_requires_separate_confirmation_and_passes_authorization(self):
         with patch('flasher.wizard.local_networks', return_value=[]), patch('flasher.wizard.backup_root', return_value=ROOT/'.not-a-real-backup-dir'), patch('flasher.wizard.validate_payload', return_value=b'controller'):
             d = Mock()
