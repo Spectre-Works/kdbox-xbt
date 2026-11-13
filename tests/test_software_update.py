@@ -4,6 +4,9 @@ from pathlib import Path
 import shlex
 import tempfile
 import unittest
+import io
+from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 import paramiko
 
@@ -68,10 +71,16 @@ class FakeUpdateDevice:
         self.files[RUNTIME+'/controller']=b'old controller'
         for name in SCRIPTS:self.files[RUNTIME+'/'+name]=b'old script'
         for name in WEB_ASSETS:self.files[WEBROOT+'/'+name]=b'old asset'
+        for name in ('pools.json','.pools.json'):
+            self.files['/usr/config/minerd/settings/'+name]=b'[{"url":"pool","user":"owner","pass":"saved"}]'
         if stopped:self.files[RUNTIME+'/halted.json']=b'{"reason":"original thermal stop"}'
         else:del self.files[RUNTIME+'/halted.json']
         self.original=dict(self.files);self.events=[];self.writes=[]
         self.verify_base=Mock();self.require_space=Mock();self.installation_state=Mock(return_value='installed')
+        @contextmanager
+        def sftp():
+            yield SimpleNamespace(open=lambda path,mode:io.BytesIO(self.files[path]))
+        self.client=SimpleNamespace(open_sftp=sftp)
 
     def api(self,path,data=None):
         if path.startswith('/user/login?'):return {'JWT Token':'native'}
@@ -116,6 +125,16 @@ class FakeUpdateDevice:
 
 
 class UpdateExecution(unittest.TestCase):
+    def test_pool_json_formatting_is_ignored_but_all_setting_values_are_protected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);target=update_fixture(root);d=FakeUpdateDevice(target,True)
+            before=protected_hashes(d)
+            path='/usr/config/minerd/settings/pools.json'
+            d.files[path]=b'[ { "pass": "saved", "user": "owner", "url": "pool" } ]\n'
+            self.assertEqual(protected_hashes(d),before)
+            d.files[path]=b'[{"pass":"saved","user":"different-worker","url":"pool"}]'
+            self.assertNotEqual(protected_hashes(d)[path],before[path])
+
     def test_readback_retries_refused_ssh_http_channel_during_controller_restart(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);target=update_fixture(root);d=FakeUpdateDevice(target,True)
