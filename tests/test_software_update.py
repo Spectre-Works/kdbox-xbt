@@ -5,11 +5,12 @@ import shlex
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
+import paramiko
 
 from flasher.device import Device
 from flasher.payload import WEB_ASSETS, SCRIPTS
 from flasher.update import (PROTECTED, RUNTIME, WEBROOT, UPDATE_PAUSE, compare_build,
-                            package_build, protected_hashes, update_device)
+                            package_build, protected_hashes, update_device, wait_build)
 from flasher.wizard import Wizard
 from test_distribution import payload_fixture
 from test_installer import MINER, wait_for
@@ -115,6 +116,17 @@ class FakeUpdateDevice:
 
 
 class UpdateExecution(unittest.TestCase):
+    def test_readback_retries_refused_ssh_http_channel_during_controller_restart(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);target=update_fixture(root);d=FakeUpdateDevice(target,True)
+            d.files[RUNTIME+'/controller']=(root/'build/kdbox-xbt-controller').read_bytes()
+            protected=protected_hashes(d)
+            original=d.api
+            d.api=Mock(side_effect=[paramiko.ChannelException(2,'Connect failed'),original('/api/status')])
+            with patch('flasher.update.controller_pid',return_value='123'),patch('flasher.update.time.sleep') as sleep:
+                wait_build(d,target,protected)
+            self.assertEqual(d.api.call_count,2);sleep.assert_called_once_with(2)
+
     def test_updates_only_application_and_keeps_existing_stop_or_creates_review_pause(self):
         for stopped in (True,False):
             with self.subTest(stopped=stopped), tempfile.TemporaryDirectory() as folder:

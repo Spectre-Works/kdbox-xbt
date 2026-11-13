@@ -1,6 +1,7 @@
 """Compare and update a working installation without changing owner settings."""
 from datetime import datetime, timezone
 import hashlib
+import http.client
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -8,6 +9,7 @@ import secrets
 import shlex
 import time
 from urllib.parse import urlencode
+import paramiko
 
 from .payload import SCRIPTS, WEB_ASSETS, validate_payload
 
@@ -104,6 +106,7 @@ echo 100 >/sys/class/fans/fan1/lvl
 def wait_build(device, target, protected):
     deadline = time.monotonic()+60
     while time.monotonic() < deadline:
+        matched = False
         try:
             status = device.api('/api/status')
             software = status.get('software', {})
@@ -112,11 +115,13 @@ def wait_build(device, target, protected):
                     and (software.get('dirty') is not False) == target['dirty']):
                 pid = controller_pid(device)
                 if device.command(f'sha256sum /proc/{pid}/exe').split()[0] == target['sha256']:
-                    if protected_hashes(device) != protected:
-                        raise RuntimeError('Protected settings changed during the update. Mining remains paused.')
-                    return
-        except (OSError, ValueError, RuntimeError):
+                    matched = True
+        except (OSError, ValueError, RuntimeError, EOFError, paramiko.SSHException, http.client.HTTPException):
             pass
+        if matched:
+            if protected_hashes(device) != protected:
+                raise RuntimeError('Protected settings changed during the update. Mining remains paused.')
+            return
         time.sleep(2)
     raise RuntimeError('The updated controller could not be verified. Mining remains paused.')
 
