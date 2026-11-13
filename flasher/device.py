@@ -382,9 +382,16 @@ class Device:
         self.installation_started = True
         if menu['algo_select'] == 0 and chosen_algorithm == 1:
             progress('Clearing the backed-up KDA pools before selecting Bitcoin (XBT)…')
-            self.api('/mcb/pools', [])
-            if self.api('/mcb/pools') != []:
-                raise RuntimeError('Stock firmware did not confirm clearing the KDA pools. XBT was not applied; inspect the miner and recovery backup before continuing.')
+            pools = self.api('/mcb/pools')
+            if not isinstance(pools, list) or any(not isinstance(pool, dict) for pool in pools):
+                raise RuntimeError('Could not read the KDA pool list. XBT was not applied.')
+            while pools:
+                self.api('/mcb/delpool', pools[0])
+                remaining = self.api('/mcb/pools')
+                if (not isinstance(remaining, list) or any(not isinstance(pool, dict) for pool in remaining)
+                        or len(remaining) >= len(pools)):
+                    raise RuntimeError('Stock firmware did not confirm clearing the KDA pools. XBT was not applied; inspect the miner and recovery backup before continuing.')
+                pools = remaining
         if info['firmware'] in READ_ONLY_FIRMWARES:
             self.command('mount -o remount,rw /')
         progress('Installing controller and original-port dashboard…')

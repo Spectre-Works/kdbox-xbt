@@ -23,10 +23,10 @@ func TestRemoveLastPoolAndMalformedSavedPool(t *testing.T) {
 					jsonReply(w, 200, map[string]string{"JWT Token": "native"})
 				case r.Method == "GET" && r.URL.Path == "/mcb/pools":
 					jsonReply(w, 200, pools)
-				case r.Method == "PUT" && r.URL.Path == "/mcb/pools":
-					var sent []map[string]any
-					if err := json.NewDecoder(r.Body).Decode(&sent); err != nil || sent == nil || len(sent) != 0 {
-						t.Error("removing the last pool did not save an explicit empty list")
+				case r.Method == "PUT" && r.URL.Path == "/mcb/delpool":
+					var sent map[string]any
+					if err := json.NewDecoder(r.Body).Decode(&sent); err != nil || sent["url"] != address || sent["pass"] != "saved" || sent["dragid"] != "existing" {
+						t.Error("deletion did not use the existing saved row")
 					}
 					writes++
 					pools = []map[string]any{}
@@ -117,26 +117,29 @@ func TestPoolRemovalRejectsStaleRowsAndUnconfirmedRemoval(t *testing.T) {
 func TestPoolListAcceptsEmptyArrayButRejectsNull(t *testing.T) {
 	for _, body := range []string{"[]", "null"} {
 		writes := 0
+		pools := []map[string]any{{"url": "first", "user": "owner"}, {"url": "second", "user": "owner"}}
 		native := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/user/login" {
+			switch {
+			case r.URL.Path == "/user/login":
 				jsonReply(w, 200, map[string]string{"JWT Token": "native"})
-			} else if r.Method == "PUT" && r.URL.Path == "/mcb/pools" {
-				var pools []map[string]any
-				if err := json.NewDecoder(r.Body).Decode(&pools); err != nil || pools == nil || len(pools) != 0 {
-					t.Error("expected an explicit empty list")
+			case r.Method == "PUT" && r.URL.Path == "/mcb/delpool":
+				var sent map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&sent); err != nil || len(pools) == 0 || sent["url"] != pools[0]["url"] {
+					t.Error("wrong pool deletion")
 				}
 				writes++
+				pools = pools[1:]
 				jsonReply(w, 200, map[string]bool{"ok": true})
-			} else if r.Method == "GET" && r.URL.Path == "/mcb/pools" {
-				jsonReply(w, 200, []map[string]any{})
-			} else {
-				t.Error(r.URL.Path)
+			case r.Method == "GET" && r.URL.Path == "/mcb/pools":
+				jsonReply(w, 200, pools)
+			default:
+				t.Errorf("unexpected stock operation: %s %s", r.Method, r.URL.Path)
 			}
 		}))
 		c := &Controller{dir: t.TempDir(), halted: true, backend: native.URL, client: native.Client()}
 		w := httptest.NewRecorder()
 		c.settings(w, httptest.NewRequest("POST", "/api/pools", strings.NewReader(body)))
-		if (body == "[]" && (w.Code != 200 || writes != 1)) || (body == "null" && (w.Code != 400 || writes != 0)) {
+		if (body == "[]" && (w.Code != 200 || writes != 2 || len(pools) != 0)) || (body == "null" && (w.Code != 400 || writes != 0)) {
 			t.Fatalf("body=%s: %d %s, writes=%d", body, w.Code, w.Body.String(), writes)
 		}
 		native.Close()

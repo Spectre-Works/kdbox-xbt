@@ -31,16 +31,21 @@ class InstallationAlgorithm(unittest.TestCase):
                 d.installation_state=Mock(return_value='repair' if saved is not None else 'new')
                 d.require_space=Mock();d.write=Mock()
                 d.backup=Mock(side_effect=lambda destination:(events.append('backup'),backup)[1])
-                algorithm=[native]
+                algorithm=[native]; pools=[{'url':'old-pool','user':'owner','dragid':0},{'url':'second-pool','user':'owner','dragid':1}]
                 def api(path, data=None):
                     if path.startswith('/user/login?'): return {'JWT Token':'owner'}
                     if path=='/mcb/algosetting':
                         if data is not None: events.append('apply-algorithm');algorithm[0]=data['algo_select']
                         return {'algo_select':algorithm[0]}
                     if path=='/mcb/pools':
-                        if data is not None:
-                            self.assertEqual(data,[]);events.append('clear-pools');return {}
-                        return [{'url':'old-pool'}] if reject_clear else []
+                        self.assertIsNone(data)
+                        return json.loads(json.dumps(pools))
+                    if path=='/mcb/delpool':
+                        self.assertEqual(data,pools[0]);events.append('clear-pools')
+                        if not reject_clear:
+                            pools.pop(0)
+                            for i,pool in enumerate(pools):pool['dragid']=i
+                        return {}
                     self.fail('unexpected native operation: '+path)
                 d.api=Mock(side_effect=api)
                 d._api_once=Mock(return_value={'software':{'name':'KD BOX XBT Mod','version':__version__},
@@ -54,7 +59,7 @@ class InstallationAlgorithm(unittest.TestCase):
                     d.write.assert_not_called();d._api_once.assert_not_called()
                 else:
                     d.install(root,'owner',backup,progress=lambda m:None,owner_authorized=True,repair_authorized=saved is not None)
-                    expected=['backup','clear-pools','apply-algorithm'] if native==0 and chosen==1 else ['backup','apply-algorithm']
+                    expected=['backup','clear-pools','clear-pools','apply-algorithm'] if native==0 and chosen==1 else ['backup','apply-algorithm']
                     self.assertEqual(events,expected)
                 self.assertEqual((backup/'usr/config/minerd/settings/pools.json').read_text(),originals['usr/config/minerd/settings/pools.json'])
 
@@ -78,7 +83,7 @@ class InstallationAlgorithm(unittest.TestCase):
         d=Device.__new__(Device);d.host='192.168.1.50'
         d.verify_base=Mock(return_value={'firmware':'2.2.1','model':'Goldshell-KDBox','mcbversion':'MCB_V5_4'})
         d.installation_state=Mock(return_value='new');d.require_space=Mock();d.write=Mock()
-        d.api=Mock(side_effect=[{'JWT Token':'owner'},{'algo_select':0},{},[],{},{'algo_select':0}])
+        d.api=Mock(side_effect=[{'JWT Token':'owner'},{'algo_select':0},[{'url':'old-pool'}],{},[],{},{'algo_select':0}])
         d._api_once=Mock()
         digest=hashlib.sha256(arm_header()).hexdigest()
         d.command=Mock(side_effect=lambda cmd:digest+'  controller' if cmd.startswith('sha256sum ') else 'clear' if cmd.startswith('test ! -f ') else '')

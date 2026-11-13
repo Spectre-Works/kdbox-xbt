@@ -42,6 +42,22 @@ func (c *Controller) savedPools() ([]map[string]any, error) {
 	return pools, err
 }
 
+// The stock list PUT only reorders pools. Deletion requires its dedicated API.
+func (c *Controller) clearPools() error {
+	pools, err := c.savedPools()
+	for err == nil && len(pools) > 0 {
+		if _, err = c.native("PUT", "/mcb/delpool", pools[0], true); err != nil {
+			return err
+		}
+		remaining, readErr := c.savedPools()
+		if readErr != nil || len(remaining) >= len(pools) {
+			return errors.New("could not confirm clearing pools; refresh the list before trying again")
+		}
+		pools = remaining
+	}
+	return err
+}
+
 func (n NetworkSettings) validate() error {
 	for k, v := range n.IP {
 		if k != "IPv4addr" && k != "Subnetmask" && k != "Router" && k != "DNS1" && k != "DNS2" {
@@ -212,7 +228,6 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 			p.URL = address
 		}
 		var selected map[string]any
-		lastPool := false
 		if e == nil {
 			current, err := c.native("GET", "/mcb/pools", nil, false)
 			var entries []map[string]any
@@ -221,7 +236,6 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 			} else if path == "pool-add" && len(entries) >= 10 {
 				e = errors.New("maximum of 10 pools")
 			} else if path == "pool-delete" {
-				lastPool = len(entries) == 1
 				for _, entry := range entries {
 					if entry["url"] == p.URL && entry["user"] == p.User {
 						selected = entry
@@ -235,11 +249,7 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 		}
 		if e == nil {
 			if path == "pool-delete" {
-				if lastPool {
-					_, e = c.native("PUT", "/mcb/pools", []map[string]any{}, true)
-				} else {
-					_, e = c.native("PUT", "/mcb/delpool", selected, true)
-				}
+				_, e = c.native("PUT", "/mcb/delpool", selected, true)
 				if e == nil {
 					var remaining []map[string]any
 					var saved []byte
@@ -282,15 +292,13 @@ func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 				pools[i]["pool-priority"] = i
 			}
 			if e == nil {
-				_, e = c.native("PUT", "/mcb/pools", pools, true)
-				if e == nil && len(pools) == 0 {
-					var saved []map[string]any
-					saved, e = c.savedPools()
-					if e != nil || len(saved) != 0 {
-						e = errors.New("could not confirm clearing pools; refresh the list before trying again")
-					} else if !c.halted {
+				if len(pools) == 0 {
+					e = c.clearPools()
+					if e == nil && !c.halted {
 						c.stop(poolSetupPause)
 					}
+				} else {
+					_, e = c.native("PUT", "/mcb/pools", pools, true)
 				}
 			}
 		}

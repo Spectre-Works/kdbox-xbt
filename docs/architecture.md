@@ -239,7 +239,9 @@ acceptance, which still require telemetry and pool checks.
 ## Pool configuration during installation
 
 Before an installation changes KDA to XBT, its verified private backup captures
-the original pool files. The installer clears the native pool list and confirms
+the original pool files. The installer removes pools through the native delete
+endpoint (the list-write endpoint only reorders them), reads back the list after
+each removal, and confirms
 it is empty before writing/applying the XBT selection. A failed readback prevents
 the switch. Existing XBT pools and repairs retaining KDA do not take that path.
 

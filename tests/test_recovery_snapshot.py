@@ -121,7 +121,7 @@ class SnapshotTests(unittest.TestCase):
         device.inspect.return_value = {'firmware': '2.2.1'}
         device.require_space = Mock()
         device.write = Mock()
-        device.api = Mock(side_effect=[{'JWT Token': 'owner'}, {'algo_select':0}, {}, [], {}, {'algo_select':1}])
+        device.api = Mock(side_effect=[{'JWT Token': 'owner'}, {'algo_select':0}, [{'url':'old-pool'}], {}, [], {}, {'algo_select':1}])
         device._api_once = Mock(return_value={
             'device': None, 'approved': {}, 'stale': True, 'halted': False, 'algorithm':1,
             'startup': 'fan-calibration', 'software': {'name': 'KD BOX XBT Mod', 'version': __version__}})
