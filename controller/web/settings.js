@@ -1,6 +1,9 @@
 let poolRequest = null;
 let poolKey = '';
 let wifiData = {};
+let wifiRequest = null;
+let wifiConnection = null;
+let wifiListKey = '';
 let cloudData = {};
 let report = null;
 let reportRequest = 0;
@@ -251,28 +254,71 @@ $('network-confirm').onclick = () => action(async () => {
   await loadNetworkTrial();
 }, 'Network settings kept.');
 
-async function loadWifi(signal) {
-  const revision = sessionRevision;
-  const data = await api('wifi', undefined, {signal});
-  if (revision !== sessionRevision || !unlocked || pageName() !== 'network') return;
+function renderWifi(data) {
   wifiData = data;
-  setText('wifi-state', wifiData.exist ? (wifiData.enable ? 'Wi-Fi is enabled.' : 'Wi-Fi is disabled.') : 'No Wi-Fi adapter detected.');
-  $('wifi-controls').hidden = !wifiData.exist;
-  $('wifi-enable').checked = Boolean(wifiData.enable);
+  const entries = Array.isArray(data.status) ? data.status.slice(0, 128) : [];
+  const connected = data.exist && data.enable ? entries.find(entry => entry.status === 2) : null;
+  const signalNames = {strong: 'Strong', normal: 'Fair', weak: 'Weak'};
+  setText('wifi-state', !data.exist ? 'No Wi-Fi adapter detected.' : !data.enable ? 'Wi-Fi is disabled.'
+    : connected ? 'Connected to ' + (connected.ssid || 'a hidden network') : 'Wi-Fi enabled · Not connected');
+  $('wifi-state').dataset.tone = connected ? 'positive' : data.enable && data.exist ? 'warning' : 'neutral';
+  $('wifi-details').hidden = !connected;
+  setText('wifi-connected-ssid', connected?.ssid || 'Hidden network');
+  setText('wifi-ip', connected?.ip || 'Waiting for an IP address');
+  setText('wifi-signal', signalNames[connected?.rss] || 'Unavailable');
+  $('wifi-controls').hidden = !data.exist;
+  $('wifi-enable').checked = Boolean(data.enable);
+  $('wifi-disconnect').hidden = !connected;
+  const connection = connected ? JSON.stringify([connected.ssid, connected.bssid]) : '';
+  if (connection && connection !== wifiConnection) {
+    showFeedback('Wi-Fi connected to ' + (connected.ssid || 'a hidden network') + '.', 'positive');
+  }
+  wifiConnection = connection;
+  const key = JSON.stringify([data.enable, entries]);
+  if (key === wifiListKey) return;
+  wifiListKey = key;
   const list = $('wifi-list');
   list.replaceChildren();
-  for (const entry of Array.isArray(wifiData.status) ? wifiData.status.slice(0, 128) : []) {
+  for (const entry of [...entries].sort((a, b) => Number(b.status === 2) - Number(a.status === 2))) {
     if (!entry.ssid) continue;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button secondary';
-    button.textContent = entry.ssid;
+    const active = Boolean(connected && entry === connected);
+    const label = active ? 'Connected' : entry.saved ? 'Saved' : '';
+    button.textContent = entry.ssid + (label ? ' · ' + label : '');
+    if (active) {
+      button.classList.add('wifi-connected');
+      button.setAttribute('aria-current', 'true');
+    }
     button.onclick = () => {
       $('ssid').value = entry.ssid;
       $('wifi-password').focus();
     };
     list.append(button);
   }
+}
+
+function loadWifi(signal) {
+  if (wifiRequest) return wifiRequest;
+  const revision = sessionRevision;
+  wifiRequest = (async () => {
+    try {
+      const data = await api('wifi', undefined, {signal});
+      if (revision !== sessionRevision || !unlocked || pageName() !== 'network') return;
+      renderWifi(data);
+    } catch (error) {
+      if (error.name !== 'AbortError' && revision === sessionRevision && unlocked && pageName() === 'network') {
+        setText('wifi-state', 'Wi-Fi status unavailable. Retrying…');
+        $('wifi-state').dataset.tone = 'warning';
+        $('wifi-details').hidden = true;
+        $('wifi-list').replaceChildren();
+        wifiListKey = '';
+        $('wifi-disconnect').hidden = true;
+      }
+    } finally { wifiRequest = null; }
+  })();
+  return wifiRequest;
 }
 $('wifi-enable').onchange = () => action(async () => {
   try { await api('wifi', {enable: $('wifi-enable').checked}); }
@@ -287,12 +333,15 @@ $('wifi-form').onsubmit = event => {
   action(async () => {
     await api('wifi', {connect: {ssid: $('ssid').value, password: $('wifi-password').value}});
     $('wifi-password').value = '';
+    showFeedback('Wi-Fi connection requested. Waiting for the miner to confirm.', 'neutral');
     await loadWifi();
-  }, 'Wi-Fi connection requested.');
+  });
 };
 for (const operation of ['disconnect', 'forget']) {
   $('wifi-' + operation).onclick = () => {
-    const ssid = $('ssid').value.trim();
+    const current = wifiData.enable && Array.isArray(wifiData.status)
+      ? wifiData.status.find(entry => entry.status === 2)?.ssid : '';
+    const ssid = operation === 'disconnect' ? current : $('ssid').value.trim() || current;
     if (!ssid) {
       showFeedback('Select or enter a Wi-Fi network name first.', 'warning');
       $('ssid').focus();
@@ -417,6 +466,11 @@ function clearPrivateViews() {
   privatePageController?.abort();
   if (report?.kind !== 'safety-stop') reportController?.abort();
   wifiData = {};
+  wifiConnection = null;
+  wifiListKey = '';
+  $('wifi-details').hidden = true;
+  for (const id of ['wifi-connected-ssid', 'wifi-ip', 'wifi-signal']) setText(id, '—');
+  $('wifi-state').dataset.tone = 'neutral';
   cloudData = {};
   $('wifi-controls').hidden = true;
   $('wifi-list').replaceChildren();
@@ -499,6 +553,9 @@ registerPolling(() => {
   if (!busy) void loadPools();
   if (!busy && unlocked && pageName() === 'network') void loadNetworkTrial().catch(() => {});
 }, 10000);
+registerPolling(() => {
+  if (!busy && unlocked && pageName() === 'network') void loadWifi();
+}, 5000);
 
 document.addEventListener('dashboardpause', () => {
   reportRequest++;

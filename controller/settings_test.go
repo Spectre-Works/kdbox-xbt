@@ -1,6 +1,35 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func TestWifiTelemetryKeepsConnectionWithoutPasswords(t *testing.T) {
+	raw := []byte(`{"exist":true,"enable":true,"mode":"sta","network":[{"ssid":"Test network","password":"saved-secret"}],"status":[{"status":2,"ssid":"Test network","ip":"192.168.1.5","bssid":"00:11:22:33:44:55","rss":"strong","saved":1,"password":"unexpected-secret"}]}`)
+	data, err := wifiTelemetry(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "secret") || strings.Contains(string(data), "password") || strings.Contains(string(data), `"network"`) {
+		t.Fatal("saved credentials reached the browser")
+	}
+	var view struct {
+		Status []struct {
+			Status int    `json:"status"`
+			SSID   string `json:"ssid"`
+			IP     string `json:"ip"`
+			Signal string `json:"rss"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(data, &view); err != nil || len(view.Status) != 1 || view.Status[0].Status != 2 || view.Status[0].SSID != "Test network" || view.Status[0].IP != "192.168.1.5" || view.Status[0].Signal != "strong" {
+		t.Fatalf("connection telemetry lost: %s, %v", data, err)
+	}
+	if _, err := wifiTelemetry([]byte(`not JSON`)); err == nil {
+		t.Fatal("invalid native reply accepted")
+	}
+}
 
 func TestOrigins(t *testing.T) {
 	for _, v := range []struct {

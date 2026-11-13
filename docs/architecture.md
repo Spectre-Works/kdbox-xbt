@@ -146,6 +146,16 @@ interfaces concurrently for tuning. Wi-Fi controls are conditional on native
 hardware support. Upstream hardware evidence covers one original KDBox test unit;
 do not infer support for other Goldshell products from the shared UI.
 
+On the unlocked Network page, Wi-Fi status refreshes every five seconds while
+the dashboard is visible. A native connected status shows the SSID, Wi-Fi IP
+address and signal strength, marks the connected network in the list, and displays
+a short connection notification containing the SSID. An accepted connection
+request alone does not produce a connected notification. Repeated reads of the
+same connection do not repeat the notification. Unavailable reads hide connection
+details until status can be confirmed again. Locking controls clears the private
+network view. The controller forwards connection telemetry without forwarding
+saved Wi-Fi passwords from the native response.
+
 ## SPECTRE WORKS fork: packaging and recovery changes
 
 The product is KD BOX XBT Mod / KD BOX Control. The runtime directory is

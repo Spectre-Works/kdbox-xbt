@@ -76,11 +76,38 @@ func (c *Controller) restoreNetwork() error {
 	c.message = "Previous network configuration restored"
 	return nil
 }
+
+// The native response also contains saved Wi-Fi passwords. The dashboard only
+// needs connection telemetry; never forward the saved credentials to a browser.
+func wifiTelemetry(raw []byte) ([]byte, error) {
+	var view struct {
+		Exist  bool   `json:"exist"`
+		Enable bool   `json:"enable"`
+		Mode   string `json:"mode"`
+		Status []struct {
+			Status  int    `json:"status"`
+			SSID    string `json:"ssid"`
+			IP      string `json:"ip,omitempty"`
+			BSSID   string `json:"bssid,omitempty"`
+			Saved   int    `json:"saved"`
+			Signal  string `json:"rss,omitempty"`
+			KeyMode string `json:"keymode,omitempty"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &view); err != nil {
+		return nil, err
+	}
+	return json.Marshal(view)
+}
+
 func (c *Controller) settings(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.TrimPrefix(r.URL.Path, "/api/")
 	reads := map[string]string{"network": "/mcb/ip", "wifi": "/mcb/wifisetting", "pools": "/mcb/pools", "system": "/mcb/status", "cloud": "/mcb/cmossetting", "rgb": "/mcb/rgbsetting", "device-settings": "/mcb/setting"}
 	if endpoint, ok := reads[path]; ok && r.Method == "GET" {
 		b, e := c.nativeContext(r.Context(), "GET", endpoint, nil, false)
+		if e == nil && path == "wifi" {
+			b, e = wifiTelemetry(b)
+		}
 		if e != nil {
 			jsonReply(w, 502, map[string]string{"error": "Device settings unavailable"})
 		} else {

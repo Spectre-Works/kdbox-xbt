@@ -1,8 +1,8 @@
 # KD BOX XBT 1.0
 
-Replacement 1.0 release with the corrected installer, Apache 2.0 licensing model,
-reserved branding and the SPECTRE WORKS interface. Discard cached copies of the
-withdrawn package and verify the checksums attached to this release.
+The first release of KD BOX XBT brings Bitcoin (XBT) mining to the original
+Goldshell KD BOX, with a guided installer, the KD BOX Control dashboard, automatic
+cooling and optional performance optimization.
 
 Customer-installed SSH modification for the **original Goldshell KD BOX,
 MCB_V5_4, ARMv7, running stock Goldshell 2.2.1**. Other KD BOX variants and stock
@@ -30,7 +30,7 @@ schema-6 snapshot and an explicit final install confirmation. It detects an
 existing mod and offers dashboard/recovery access without reinstalling it.
 Neither the dashboard nor SSH password is changed by installation.
 
-## Installer and recovery refinements
+## Installer and recovery
 
 - Official emblem, graphical wordmark, **REBUILT FOR BITCOIN.** tagline and website
   favicons, with local Chakra Petch fonts, dark/light themes and mobile layouts.

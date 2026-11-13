@@ -6,7 +6,7 @@ the stock management build over SSH. **Avoid 2.2.4.** Its management process
 stops SSH at startup and the 2.2.3 SSH enable mechanism was removed. Its mining
 and fan-control binaries also changed. [Stock firmware and SSH](customer-firmware.md)
 
-## Current 1.0 installation policy
+## Current installation policy
 
 New installs require the original KD BOX / MCB_V5_4 / ARMv7 and stock 2.2.1.
 Defaults are 740 MHz / 430 mV, a 75°C hottest-chip limit, Automatic performance

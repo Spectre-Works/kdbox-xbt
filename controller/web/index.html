@@ -212,7 +212,12 @@
         </section>
         <section class="card">
           <h2>Wi-Fi</h2>
-          <p id="wifi-state">Unlock to check for a wireless adapter.</p>
+          <p id="wifi-state" class="status-label" aria-live="polite">Unlock to check for a wireless adapter.</p>
+          <dl id="wifi-details" class="facts" hidden>
+            <div><dt>Connected network</dt><dd id="wifi-connected-ssid">—</dd></div>
+            <div><dt>Wi-Fi IP address</dt><dd id="wifi-ip">—</dd></div>
+            <div><dt>Signal strength</dt><dd id="wifi-signal">—</dd></div>
+          </dl>
           <fieldset id="wifi-controls" data-requires-unlock hidden disabled>
             <legend class="sr-only">Wireless settings</legend>
             <label class="check"><input id="wifi-enable" type="checkbox"> Enable Wi-Fi</label>

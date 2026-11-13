@@ -1,7 +1,7 @@
 # 0.1.2 prerelease
 
-Historical upstream/fork notes. Use the [1.0 README](../README.md) and
-[current release notes](release-1.0.md) for installation and operating policy.
+Historical upstream/fork notes. Use the [current README](../README.md) and
+[current release notes](release-1.0.1.md) for installation and operating policy.
 
 - Retry transient SSH connection failures with a fresh connection and bounded backoff.
 - Give slow SSH servers more time to send their greeting.
