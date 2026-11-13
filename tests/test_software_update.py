@@ -73,6 +73,10 @@ class FakeUpdateDevice:
         for name in WEB_ASSETS:self.files[WEBROOT+'/'+name]=b'old asset'
         for name in ('pools.json','.pools.json'):
             self.files['/usr/config/minerd/settings/'+name]=b'[{"url":"pool","user":"owner","pass":"saved"}]'
+        for name in ('cpbsetting.json','.cpbsetting.json'):
+            self.files['/usr/config/minerd/settings/'+name]=b'{"manualPowerplan":"740 MHz 0.430 V","tempcontrol":true}'
+        for name in ('algosetting.json','.algosetting.json'):
+            self.files['/usr/config/minerd/settings/'+name]=b'{"algo_select":1,"algos":[]}'
         if stopped:self.files[RUNTIME+'/halted.json']=b'{"reason":"original thermal stop"}'
         else:del self.files[RUNTIME+'/halted.json']
         self.original=dict(self.files);self.events=[];self.writes=[]
@@ -131,9 +135,15 @@ class UpdateExecution(unittest.TestCase):
             before=protected_hashes(d)
             path='/usr/config/minerd/settings/pools.json'
             d.files[path]=b'[ { "pass": "saved", "user": "owner", "url": "pool" } ]\n'
+            for name in ('cpbsetting.json','algosetting.json'):
+                key='/usr/config/minerd/settings/'+name
+                d.files[key]=json.dumps(json.loads(d.files[key]),indent=4,sort_keys=True).encode()
             self.assertEqual(protected_hashes(d),before)
             d.files[path]=b'[{"pass":"saved","user":"different-worker","url":"pool"}]'
             self.assertNotEqual(protected_hashes(d)[path],before[path])
+            key='/usr/config/minerd/settings/cpbsetting.json'
+            d.files[key]=b'{"manualPowerplan":"755 MHz 0.430 V","tempcontrol":true}'
+            self.assertNotEqual(protected_hashes(d)[key],before[key])
 
     def test_readback_retries_refused_ssh_http_channel_during_controller_restart(self):
         with tempfile.TemporaryDirectory() as folder:

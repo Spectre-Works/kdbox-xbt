@@ -271,5 +271,6 @@ against the target build. Passwords, pools, approved tuning, algorithm, network,
 startup registration and configuration are not rewritten. Verification failures
 restore application files and retain the stop. Resume always remains an explicit
 operator action. Remote file paths use POSIX semantics on every installer host.
-Pool files are compared as canonical JSON so stock-service key-order/whitespace
-rewrites do not block updates; every value and pool-list position is preserved.
+Native pool, clock and algorithm files are compared as canonical JSON so
+stock-service key-order/whitespace rewrites do not block updates; every value and
+list position is preserved. Credentials, Wi-Fi and stop records remain byte-exact.

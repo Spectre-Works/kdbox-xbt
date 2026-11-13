@@ -62,17 +62,18 @@ def protected_hashes(device):
         result[path] = digest
     if set(result) != set(PROTECTED):
         raise RuntimeError('Protected settings verification was incomplete.')
-    # The stock service rewrites equivalent pool JSON with different key order
+    # The stock service rewrites equivalent native JSON with different key order
     # or whitespace. Preserve every value and list position, not serialization.
     with device.client.open_sftp() as sftp:
-        for name in ('pools.json', '.pools.json'):
+        for name in ('pools.json', '.pools.json', 'cpbsetting.json', '.cpbsetting.json',
+                     'algosetting.json', '.algosetting.json'):
             path = '/usr/config/minerd/settings/'+name
             if result[path] == 'absent':
                 continue
             with sftp.open(path, 'rb') as stream:
                 raw = stream.read((1 << 20)+1)
             if len(raw) > 1 << 20:
-                raise RuntimeError('Pool configuration exceeded the read limit.')
+                raise RuntimeError('Native configuration exceeded the read limit.')
             value = json.loads(raw)
             result[path] = hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     return result
