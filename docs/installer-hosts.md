@@ -12,9 +12,9 @@ compare its entire SHA-256 value with the matching line in `SHA256SUMS.txt`:
 
 | OS | Product ZIP checksum command |
 | --- | --- |
-| Windows PowerShell | `Get-FileHash .\KDBoxXBT-1.0.2.zip -Algorithm SHA256` |
-| macOS Terminal | `shasum -a 256 KDBoxXBT-1.0.2.zip` |
-| Linux Terminal | `sha256sum KDBoxXBT-1.0.2.zip` |
+| Windows PowerShell | `Get-FileHash .\KDBoxXBT-1.0.1.zip -Algorithm SHA256` |
+| macOS Terminal | `shasum -a 256 KDBoxXBT-1.0.1.zip` |
+| Linux Terminal | `sha256sum KDBoxXBT-1.0.1.zip` |
 
 The same commands can check Goldshell's separately downloaded CPB: replace the
 ZIP filename with `firmware-Goldshell-KDBox-2.2.1.cpb` and compare with the pinned

@@ -1,7 +1,9 @@
 # KD BOX XBT 1.0.1
 
 This update makes the Wi-Fi connection state clear in KD BOX Control and adds
-confirmed connection notifications. The installer and dashboard report **1.0.1**.
+confirmed connection notifications, with guided setup that distinguishes fresh
+stock miners from genuine incomplete installations. The installer and dashboard
+report **1.0.1**.
 
 ## Wi-Fi improvements
 
@@ -19,6 +21,14 @@ confirmed connection notifications. The installer and dashboard report **1.0.1**
 - Unavailable status hides stale connection details; locking controls clears the
   private network view. Saved Wi-Fi passwords are stripped from the native status
   response before it reaches the dashboard.
+
+## Installer detection
+
+Fresh stock dashboards follow **Ready to install**. A stock `index.html`, generic
+assets or a favicon do not establish a previous installation. Repair requires
+mod-specific runtime, startup or branding evidence; complete file and controller
+checks still identify an already-installed miner. Genuine remnants retain the
+separate repair confirmation, private backup and saved-settings protections.
 
 ## Download and installation
 
@@ -47,8 +57,11 @@ Connection/disconnection transitions and read failures were tested with simulate
 responses to avoid interrupting its live Wi-Fi connection. A supervised application
 deployment and resume returned all 16 chip temperatures and new accepted shares;
 passwords, saved network/mining settings and thermal safeguards were preserved.
-These are finite observations of one unit, not certification of other hardware
-or indefinite operation.
+Fresh-install detection was also verified read-only on a never-modified stock
+2.2.1 miner with only the stock `index.html` present. Regression tests cover shared
+stock assets, genuine remnants, working controllers and the new-install wizard
+review. These are finite observations, not certification of other hardware or
+indefinite operation.
 
 Cooling defaults remain a 75°C hottest-chip limit and 30% normal fan minimum.
 Automatic performance remains off by default, with 740 MHz / 430 mV defaults.
