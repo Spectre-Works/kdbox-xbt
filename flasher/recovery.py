@@ -2,9 +2,9 @@
 import hashlib
 from pathlib import Path
 import re
-from .payload import WEB_ASSETS, WEB_FONTS, SCRIPTS
+from .payload import WEB_ASSETS, WEB_FONTS, SCRIPTS, RECOVERY_PATH
 
-BACKUP_SCHEMA = 6
+BACKUP_SCHEMA = 7
 ALGORITHM_PATH = '/usr/config/kdbox-xbt/algorithm.json'
 CONFIG_PATHS = (
     '/etc/inittab', '/root/yottamc/index.html', '/root/settings/algosetting.json',
@@ -14,6 +14,7 @@ CONFIG_PATHS = (
     '/usr/config/bfgminer/.bfgminer.json', '/usr/config/bfgminer/bfgminer.json',
     '/etc/init.d/S99kdbox-xbt', '/usr/config/kdbox-xbt/config.json',
     '/usr/config/kdbox-xbt/approved.json', ALGORITHM_PATH,
+    RECOVERY_PATH,
 )
 LEGACY_FAVICON = '/root/yottamc/favicon.svg'
 WEB_PATHS = (*('/root/yottamc/' + name for name in (*WEB_ASSETS, 'legacy.html')), LEGACY_FAVICON)
@@ -28,9 +29,11 @@ FAVICON_BACKUP_PATHS = {'/root/yottamc/favicon-32.png', '/root/yottamc/favicon-4
 def validate_backup(destination, identity, manifest):
     root = Path(destination).resolve()
     version = identity.get('manifest_version')
-    if type(version) is not int or version not in (3, 4, 5, BACKUP_SCHEMA) or not isinstance(manifest, dict) or not manifest:
+    if type(version) is not int or version not in (3, 4, 5, 6, BACKUP_SCHEMA) or not isinstance(manifest, dict) or not manifest:
         raise RuntimeError('Unsupported or empty recovery manifest')
     allowed = set(BACKUP_PATHS)
+    if version < 7:
+        allowed -= {RECOVERY_PATH}
     if version < 6:
         allowed -= FAVICON_BACKUP_PATHS
     if version < 5:

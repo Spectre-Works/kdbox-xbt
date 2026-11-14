@@ -82,6 +82,10 @@ type Controller struct {
 	device                                       map[string]any
 	networkPending                               *NetworkTrial
 	recovering                                   bool
+	autoResumeBlocked                            bool
+	resetBlocked                                 bool
+	ownerReset                                   func() error
+	ownerReboot                                  func() error
 }
 
 func atomicJSON(path string, value any) error {
@@ -281,6 +285,11 @@ func (c *Controller) safety() {
 	}
 	if c.halted {
 		c.fans(100)
+		if pending, _ := c.miningResetState(); pending {
+			c.advanceMiningReset()
+			return
+		}
+		c.tryResumePoolSetup()
 		return
 	}
 	if c.pending != nil && !c.deadline.IsZero() && time.Now().After(c.deadline) {
@@ -488,6 +497,9 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" && r.URL.Path == "/api/status" {
 		now := time.Now()
 		c.updateMiningSession(now)
+		kind, automaticResume := c.pauseStatus()
+		resetPending, resetFailed := c.miningResetState()
+		ownerReset, resetRebooting := c.ownerResetStatus()
 		status := map[string]any{
 			"software":  softwareInfo(),
 			"algorithm": c.algorithm, "algorithm_queued": c.algorithmQueued,
@@ -502,6 +514,9 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 			"performance": c.performanceStatus(),
 			"message":     c.message, "halted": c.halted, "stale": now.Sub(c.lastGood) > 15*time.Second,
 			"controls_unlocked": unlocked,
+			"pause_kind":        kind, "automatic_resume": automaticResume,
+			"reset_pending": resetPending, "reset_failed": resetFailed,
+			"reset_owner": ownerReset, "reset_rebooting": resetRebooting,
 		}
 		c.mu.Unlock()
 		jsonReply(w, 200, status)
@@ -540,11 +555,26 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 		jsonReply(w, 401, map[string]string{"error": "Unlock with your miner password first"})
 		return
 	}
+	if pending, _ := c.miningResetState(); pending && r.Method == "POST" && r.URL.Path != "/api/factory-reset" && r.URL.Path != "/api/reboot" && r.URL.Path != "/api/logout" {
+		jsonReply(w, 409, map[string]string{"error": "Settings reset is pending. Wait for completion, or retry Factory reset if it failed."})
+		return
+	}
 	if c.settings(w, r) {
 		return
 	}
 	var err error
 	switch {
+	case r.URL.Path == "/api/factory-reset" && r.Method == "POST":
+		var q struct {
+			Confirm string `json:"confirm"`
+		}
+		err = decode(r, &q)
+		if err == nil && q.Confirm != "FACTORY RESET" {
+			err = errors.New("type FACTORY RESET to erase owner settings and restore factory passwords")
+		}
+		if err == nil {
+			err = c.resetOwnerSettings()
+		}
 	case r.URL.Path == "/api/cooling" && r.Method == "POST":
 		var q struct {
 			Target int `json:"target"`
@@ -623,6 +653,9 @@ func main() {
 	logger := &boundedLog{path: logPath, maximum: 256 << 10}
 	_, _ = logger.Write(nil) // Trim an oversized log left by an older build too.
 	log.SetOutput(logger)
+	if e := finishOwnerResetBoot(*dir, currentBootID()); e != nil {
+		log.Fatal(e)
+	}
 	if e := provisioningReady(*dir); e != nil {
 		log.Fatal(e)
 	}
@@ -638,6 +671,8 @@ func main() {
 	c := &Controller{dir: *dir, backend: "http://127.0.0.1", engineGrace: time.Now().Add(180 * time.Second), client: &http.Client{Timeout: 4 * time.Second}, boot: time.Now(), lastGood: time.Now(), sessions: map[string]Session{}, message: "Starting"}
 	c.reload = restartMiningEngine
 	c.setClock = setMinerClock
+	c.ownerReset = func() error { return performOwnerReset(c) }
+	c.ownerReboot = func() error { syscall.Sync(); return exec.Command("/sbin/reboot").Run() }
 	b, e := os.ReadFile(filepath.Join(*dir, "config.json"))
 	if e != nil || json.Unmarshal(b, &c.cfg) != nil || c.cfg.AdminPassword == "" {
 		log.Fatal("missing valid private config")
@@ -749,8 +784,14 @@ func main() {
 	}
 	if _, e = os.Stat(filepath.Join(*dir, "halted.json")); e == nil {
 		c.stop("Safety stop retained; original cause unavailable. Check diagnostics before resuming")
-	} else if e = c.apply(c.approved); e != nil {
-		log.Fatal("cannot apply approved settings")
+	}
+	if pending, _ := c.miningResetState(); pending && !c.halted {
+		c.stop("Interrupted mining settings reset; inspect before resuming")
+	}
+	if !c.halted {
+		if e = c.apply(c.approved); e != nil {
+			log.Fatal("cannot apply approved settings")
+		}
 	}
 	if e = c.restoreAlgorithm(); e != nil {
 		c.stop("Could not verify the selected mining algorithm: " + e.Error())

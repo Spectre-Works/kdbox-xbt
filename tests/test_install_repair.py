@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from flasher.device import Device
+from flasher.device import Device, RESET_REPAIR_PAUSE
 from flasher.payload import WEB_ASSETS
 from flasher.wizard import Wizard
 from test_installer import MINER, ROOT, wait_for
@@ -134,6 +134,55 @@ class RepairWizard(unittest.TestCase):
 
 
 class RepairPreservation(unittest.TestCase):
+    def test_erased_private_settings_repair_holds_mining_before_provisioning(self):
+        import hashlib
+        from flasher import __version__
+        from test_distribution import arm_header
+        for saved_pool in (False, True):
+            with self.subTest(saved_pool=saved_pool), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                payload_fixture(root)
+                backup = root/'backup'
+                originals = {'etc/inittab':'ttyAMA3::respawn:/usr/config/kdbox-xbt/launcher.sh\n',
+                             'root/yottamc/index.html':'KD BOX Control'}
+                if saved_pool:
+                    originals['usr/config/minerd/settings/pools.json'] = '[{"url":"owner-pool"}]'
+                for name, value in originals.items():
+                    path = backup/name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(value)
+                d = Device.__new__(Device)
+                d.host = MINER['host']
+                d.verify_base = Mock(return_value=dict(MINER, mcbversion='MCB_V5_4'))
+                d.installation_state = Mock(return_value='repair')
+                d.require_space = Mock()
+                d.backup = Mock(return_value=backup)
+                d.write = Mock()
+                digest = hashlib.sha256(arm_header()).hexdigest()
+                d.command = Mock(side_effect=lambda cmd: digest+'  controller' if cmd.startswith('sha256sum ') else 'clear' if cmd.startswith('test ! -f ') else '')
+                d.api = Mock(side_effect=[{'JWT Token':'private'}, {'algo_select':1}, {}, {'algo_select':1}])
+                ready = dict(HEALTH, halted=True, message=RESET_REPAIR_PAUSE,
+                             software={'name':'KD BOX XBT Mod', 'version':__version__})
+                d._api_once = Mock(side_effect=[dict(ready, halted=False), ready])
+                with patch('flasher.device.time.sleep'):
+                    d.install(root, 'owner', backup, progress=lambda m:None, owner_authorized=True, repair_authorized=True)
+                self.assertEqual(d._api_once.call_count, 2)
+                writes = {call.args[0]:call.args[1] for call in d.write.call_args_list}
+                record = json.loads(writes['/usr/config/kdbox-xbt/repair-stop.json'])
+                self.assertEqual(record['reason'], RESET_REPAIR_PAUSE)
+                paths = [call.args[0] for call in d.write.call_args_list]
+                self.assertLess(paths.index('/usr/config/kdbox-xbt/repair-stop.json'), paths.index('/usr/config/kdbox-xbt/config.json'))
+                commands = [call.args[0] for call in d.command.call_args_list]
+                self.assertTrue(any(cmd.startswith('ln ') and '/halted.json' in cmd for cmd in commands))
+                self.assertTrue(any('kill -STOP "$p"' in cmd and 'fan0/lvl' in cmd for cmd in commands))
+                for name in ('pools.json', '.pools.json'):
+                    path = '/usr/config/minerd/settings/'+name
+                    if saved_pool:
+                        self.assertNotIn(path, writes)
+                    else:
+                        self.assertEqual(json.loads(writes[path]), [])
+                self.assertEqual(json.loads(writes['/usr/config/kdbox-xbt/config.json']), {'admin_password':'owner'})
+
     def test_repair_keeps_exact_config_and_approved_algorithm_and_accepts_startup(self):
         # Exercise the production install path with a fake device filesystem.
         from flasher import __version__

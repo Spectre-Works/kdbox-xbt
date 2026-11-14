@@ -10,9 +10,10 @@ import shlex
 import socket
 import errno
 import time
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 import paramiko
-from .payload import validate_payload, WEB_ASSETS
+from .payload import validate_payload, WEB_ASSETS, RECOVERY_PATH, RECOVERY_SCRIPT
 from .recovery import ALGORITHM_PATH, BACKUP_PATHS, BACKUP_SCHEMA, WEB_PATHS, LEGACY_FAVICON, validate_backup
 from . import __version__
 from .branding import PRODUCT
@@ -34,10 +35,12 @@ def transient_connection_error(exc):
 
 
 READ_ONLY_FIRMWARES = {'2.2.3'}
+RESET_REPAIR_PAUSE = 'Recovered after missing installation settings; review configuration before resuming'
 
 def startup_config(original, firmware):
-    updated = original.replace('ttyAMA3::respawn:xminerd', 'ttyAMA3::respawn:/usr/config/kdbox-xbt/launcher.sh')
-    if 'respawn:/usr/config/kdbox-xbt/launcher.sh' not in updated:
+    line = 'ttyAMA3::respawn:'+RECOVERY_PATH+' mining'
+    updated = original.replace('ttyAMA3::respawn:xminerd', line).replace('ttyAMA3::respawn:/usr/config/kdbox-xbt/launcher.sh', line)
+    if line not in updated:
         raise RuntimeError('Unexpected startup layout; no changes made')
     if firmware in READ_ONLY_FIRMWARES:
         fan_line = 'ttyAMA3::respawn:fanctrl'
@@ -46,6 +49,13 @@ def startup_config(original, firmware):
             raise RuntimeError('Unexpected fan startup layout; no changes made')
         updated = updated.replace(fan_line, owned)
     return updated
+
+
+def startup_hook():
+    return (f'#!/bin/sh\ncase "$1" in start)\n'
+            f' {RECOVERY_PATH} watch </dev/null >/tmp/kdbox-xbt-recovery.log 2>&1 &\n'
+            ' test ! -x /usr/config/kdbox-xbt/boot.sh || /usr/config/kdbox-xbt/boot.sh </dev/null >/tmp/kdbox-xbt-start.log 2>&1 &\n'
+            ';; esac\n').encode()
 
 
 def installation_algorithm(backup, native_menu):
@@ -221,10 +231,13 @@ class Device:
         checks = {'directory': f'test -d {runtime}',
                   'config': f'test -s {runtime}/config.json',
                   'controller': f'test -x {runtime}/controller',
-                  'startup': "grep -Fq 'ttyAMA3::respawn:/usr/config/kdbox-xbt/launcher.sh' /etc/inittab",
+                  'startup': "grep -Eq 'ttyAMA3::respawn:(/usr/config/kdbox-xbt/launcher.sh|/root/kdbox-xbt-recovery.sh mining)' /etc/inittab",
                   'hook': "grep -Fq '/usr/config/kdbox-xbt/boot.sh' /etc/init.d/S99kdbox-xbt",
                   'dashboard': "grep -Fq 'KD BOX Control' /root/yottamc/index.html",
                   'previous-favicon': 'test -s /root/yottamc/favicon.svg'}
+        checks.update({'recovery-startup': "grep -Fq 'respawn:/root/kdbox-xbt-recovery.sh mining' /etc/inittab",
+                       'recovery-hook': "grep -Fq '/root/kdbox-xbt-recovery.sh watch' /etc/init.d/S99kdbox-xbt",
+                       'recovery-script': 'test -x '+RECOVERY_PATH})
         checks.update({name: f'test -x {runtime}/{name}' for name in ('launcher.sh', 'supervisor.sh', 'boot.sh')})
         checks.update({name: 'test -s ' + shlex.quote('/root/yottamc/' + name) for name in WEB_ASSETS})
         present = set(self.command('\n'.join(
@@ -236,7 +249,9 @@ class Device:
         if not present.intersection(markers):
             return 'new'
         icon_names = {'favicon-32.png', 'favicon-48.png'}
-        required = set(checks) - icon_names - {'previous-favicon'}
+        required = set(checks) - icon_names - {'previous-favicon', 'recovery-startup', 'recovery-hook', 'recovery-script'}
+        if present.intersection({'recovery-startup', 'recovery-hook'}) and 'recovery-script' not in present:
+            return 'repair'
         if not required.issubset(present) or not (icon_names.issubset(present) or 'previous-favicon' in present):
             return 'repair'
         try:
@@ -342,7 +357,7 @@ class Device:
         for remote,meta in sorted(manifest.items(),key=lambda item:item[0]=='/etc/inittab'):
             if not meta.get('absent'):
                 self.write(remote,(destination/remote.lstrip('/')).read_bytes(),meta['mode'])
-            elif remote == ALGORITHM_PATH or remote in WEB_PATHS:
+            elif remote == ALGORITHM_PATH or remote in WEB_PATHS or remote == RECOVERY_PATH:
                 # Remove only files proven absent in this snapshot.
                 self.command('rm -f ' + shlex.quote(remote))
         if manifest.get('/etc/init.d/S99kdbox-xbt',{}).get('absent'):
@@ -380,13 +395,14 @@ class Device:
         self.token = self.api('/user/login?' + urlencode({'username': 'admin', 'password': password})).get('JWT Token')
         if not self.token:
             raise RuntimeError('Miner dashboard password was not accepted')
-        if self.command('test ! -f /usr/config/kdbox-xbt/pending.json && test ! -f /usr/config/kdbox-xbt/network-pending.json && echo clear').strip() != 'clear':
+        if self.command('test ! -f /usr/config/kdbox-xbt/pending.json && test ! -f /usr/config/kdbox-xbt/network-pending.json && test ! -f /usr/config/kdbox-xbt/mining-reset.json && echo clear').strip() != 'clear':
             raise RuntimeError('Resolve the pending performance or network adjustment before installing or repairing. Recovery journals were not cleared.')
         progress('Saving a private recovery backup…')
         backup = self.backup(backup_dir)
 
         init = startup_config((backup / 'etc/inittab').read_text(encoding='utf-8'), info['firmware'])
         saved_config = backup / 'usr/config/kdbox-xbt/config.json'
+        reset_repair = installation == 'repair' and not saved_config.exists()
         if saved_config.exists():
             config = json.loads(saved_config.read_text(encoding='utf-8'))
             if (not isinstance(config, dict) or config.get('admin_password') != password
@@ -411,6 +427,22 @@ class Device:
             self.command('mount -o remount,rw /')
         progress('Installing controller and original-port dashboard…')
         self.command('mkdir -p /usr/config/kdbox-xbt; chmod 700 /usr/config/kdbox-xbt')
+        self.write(RECOVERY_PATH, (root/'controller'/RECOVERY_SCRIPT).read_bytes(), 0o700)
+        if reset_repair:
+            # Factory reset erases this partition, including any stop history.
+            # Install the hold before provisioning can release the boot launcher.
+            progress('Installation settings were erased. Restoring defaults with mining paused for review…')
+            record = json.dumps({'reason': RESET_REPAIR_PAUSE, 'at': datetime.now(timezone.utc).isoformat()}).encode()
+            self.write('/usr/config/kdbox-xbt/repair-stop.json', record)
+            self.command('ln /usr/config/kdbox-xbt/repair-stop.json /usr/config/kdbox-xbt/halted.json && rm /usr/config/kdbox-xbt/repair-stop.json')
+            from .update import pause_mining
+            pause_mining(self)
+            # With xminerd held, stock cannot create its initial pool list.
+            # Initialize only a completely absent list; retain every saved pool.
+            pool_paths = ('/usr/config/minerd/settings/pools.json', '/usr/config/minerd/settings/.pools.json')
+            if all(not (backup / path.lstrip('/')).exists() for path in pool_paths):
+                for path in pool_paths:
+                    self.write(path, b'[]\n', 0o644)
         self.write('/usr/config/kdbox-xbt/controller', binary, 0o700)
         expected = hashlib.sha256(binary).hexdigest()
         if self.command('sha256sum /usr/config/kdbox-xbt/controller').split()[0] != expected:
@@ -438,7 +470,8 @@ class Device:
         if not isinstance(observed, dict) or type(observed.get('algo_select')) is not int or observed['algo_select'] != chosen_algorithm:
             raise RuntimeError('Stock firmware did not confirm the selected algorithm. Application startup was not started; inspect the miner and recovery backup before continuing.')
         self.write('/etc/inittab', init.encode(), 0o644)
-        self.write('/etc/init.d/S99kdbox-xbt', b'#!/bin/sh\ncase "$1" in start) /usr/config/kdbox-xbt/boot.sh </dev/null >/tmp/kdbox-xbt-start.log 2>&1 & ;; esac\n', 0o755)
+        self.write('/etc/init.d/S99kdbox-xbt', startup_hook(), 0o755)
+        self.command(RECOVERY_PATH+' watch </dev/null >/tmp/kdbox-xbt-recovery.log 2>&1 & echo recovery-started')
         if info['firmware'] in READ_ONLY_FIRMWARES:
             self.command('echo 100 >/sys/class/fans/fan0/lvl; echo 100 >/sys/class/fans/fan1/lvl; for p in $(pidof fanctrl); do kill -STOP "$p"; done')
         self.command('if pidof controller >/dev/null; then kill -TERM $(pidof controller); else nohup /usr/config/kdbox-xbt/boot.sh </dev/null >/tmp/kdbox-xbt-start.log 2>&1 & fi; echo started')
@@ -454,7 +487,8 @@ class Device:
                         and state['software'].get('version') == __version__
                         and state.get('algorithm') == chosen_algorithm and not state.get('algorithm_queued')
                         and isinstance(state.get('approved'), dict)
-                        and type(state.get('stale')) is bool and type(state.get('halted')) is bool):
+                        and type(state.get('stale')) is bool and type(state.get('halted')) is bool
+                        and (not reset_repair or (state.get('halted') is True and state.get('message') == RESET_REPAIR_PAUSE))):
                     ready = True
                     break
             except (OSError, paramiko.SSHException, http.client.HTTPException, ValueError, RuntimeError):

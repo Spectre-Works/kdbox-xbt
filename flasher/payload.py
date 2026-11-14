@@ -13,11 +13,14 @@ WEB_ASSETS = (
     'licenses.html', 'open-source.txt', *WEB_FONTS,
 )
 SCRIPTS = ('launcher.sh', 'supervisor.sh', 'boot.sh')
+RECOVERY_SCRIPT = 'recovery-bootstrap.sh'
+RECOVERY_PATH = '/root/kdbox-xbt-recovery.sh'
 PAYLOAD_FILES = (
     *LEGAL_FILES,
     'build/kdbox-xbt-controller', 'controller/compatibility.json',
     'flasher/web/spectre-wordmark.png',
     *(f'controller/{name}' for name in SCRIPTS),
+    'controller/'+RECOVERY_SCRIPT,
     *(f'controller/web/{name}' for name in WEB_ASSETS),
 )
 

@@ -157,6 +157,7 @@ small, .muted { color: var(--muted); }
 [data-tone="danger"] { --tone: var(--danger); --tone-bg: var(--danger-bg); }
 
 .page { display: grid; gap: 18px; }
+#controller-recovery, #factory-reset-progress { margin-bottom: 18px; }
 .metrics, .overview-grid, .columns, .form-grid { display: grid; gap: 16px; }
 .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; }
 .metric, .card {

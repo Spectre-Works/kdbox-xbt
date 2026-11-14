@@ -26,7 +26,7 @@ func saveStop(path, reason string, device map[string]any) (string, error) {
 	} else if !os.IsNotExist(err) {
 		return reason, err
 	}
-	err := atomicJSON(path, map[string]any{"reason": reason, "at": time.Now().UTC().Format(time.RFC3339), "device": device})
+	err := atomicJSON(path, map[string]any{"reason": reason, "kind": pauseKind(reason), "at": time.Now().UTC().Format(time.RFC3339), "device": device})
 	return reason, err
 }
 
@@ -45,7 +45,7 @@ const (
 func (c *Controller) diagnostics(ctx context.Context, w http.ResponseWriter, kind string, unlocked, halted bool, password string) {
 	if kind == "safety-stop" {
 		if !halted {
-			jsonReply(w, http.StatusOK, diagnosticReport{Note: "No active safety stop."})
+			jsonReply(w, http.StatusOK, diagnosticReport{Note: "No active mining pause or safety stop."})
 			return
 		}
 		report, err := readStopReport(filepath.Join(c.dir, "halted.json"))
@@ -132,7 +132,7 @@ func readStopReport(path string) (diagnosticReport, error) {
 	if saved.Device.FanSpeed != "" {
 		fmt.Fprintln(&report, "Fans", saved.Device.FanSpeed)
 	}
-	return diagnosticReport{Body: report.String(), Note: "Showing the saved safety stop."}, nil
+	return diagnosticReport{Body: report.String(), Note: "Showing the saved pause or safety-stop record."}, nil
 }
 
 func (c *Controller) stockDiagnostic(ctx context.Context, kind, password string) (diagnosticReport, error) {

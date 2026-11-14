@@ -178,15 +178,15 @@ The default release is editable source plus the ARM controller, with separately
 installed desktop dependencies.
 The complete license text is embedded in and deployed with the controller/UI.
 
-New backup manifests have version 6 and include the header emblem, dashboard fonts, saved algorithm,
+New backup manifests have version 7 and include the header emblem, dashboard fonts, saved algorithm,
 controller binary, startup scripts and managed configuration. Files and the
 snapshot directory are owner-only on POSIX systems. On
 Windows, verify the user-profile/folder ACLs separately. Backups contain secrets.
 Every recovery path is allowlisted and every present file is verified before any
 restore write.
 
-Restore accepts complete schema-3, schema-4, schema-5 and schema-6 snapshots.
-Schema 6 adds the website PNG favicons, and retains the old favicon path only for
+Restore accepts complete schema-3, schema-4, schema-5, schema-6 and schema-7 snapshots.
+Schema 7 adds the persistent root recovery launcher. Schema 6 adds the website PNG favicons, and retains the old favicon path only for
 verified backup/restore cleanup. The current application no longer ships it. Restoration removes
 allowlisted web assets and saved algorithm files recorded as absent. An original-stock restore disables the custom boot
 hook; unused runtime files may remain on disk but should not be started manually.
@@ -279,3 +279,21 @@ remain byte-exact.
 The stock default power-plan display name can alternate between the miner's
 Ethernet and Wi-Fi MAC addresses; those verified interface identities are treated
 as display metadata. An owner-supplied custom name remains protected.
+
+## Reset and pause policy
+
+Only an exact pool-setup pause can resume automatically, after a valid saved pool
+and the pinned 2.2.1 managed configuration are verified. Unknown/corrupt stops and
+thermal, fan, watchdog, recovery and software-update inspection stops remain
+latched. An automatic startup failure becomes a fault and is not retried.
+
+The authenticated factory reset keeps application files and genuine fault state,
+but clears owner credentials, networking, pools, cloud settings, labels, tuning and
+history. It rotates native session keys in both the runtime and the stock startup templates, invalidates mod sessions and restores the
+stock dashboard/SSH passwords. A version-2 journal prevents blind retries and
+requires a new boot before completion. Existing version-1 mining-only reset
+journals remain non-destructive; they are not upgraded automatically.
+
+The root-partition recovery script holds mining and full cooling and maintains SSH
+when the resettable runtime is absent. It contains no credentials or configuration
+copy and does not resume mining. See [recovery operations](installation-handoff.md).

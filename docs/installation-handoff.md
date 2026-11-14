@@ -107,7 +107,7 @@ Change only one variable at a time and stop on unexpected telemetry or access lo
 ## 6. Restore / stop conditions
 
 The recovery list shows snapshots under `~/KDBoxXBT/backups/`. Choose a complete
-schema-3, schema-4, schema-5 or schema-6 backup from
+schema-3, schema-4, schema-5, schema-6 or schema-7 backup from
 this exact miner and matching firmware: MAC, SSH host key, firmware and checksums
 are checked before writes. Never edit those identifiers to force a restore.
 A source payload is not needed to restore an existing backup, but Python
@@ -143,6 +143,42 @@ confirmation and a new private snapshot. It preserves the saved configuration,
 clock ceiling, approved settings and algorithm. Existing safety stops or pending
 adjustments block application writes and must be inspected first.
 
+### After an original factory reset
+
+Observed on stock 2.2.1: factory reset removes `/usr/config/kdbox-xbt` and
+reinitializes native settings, but retains `/root/yottamc`, `/etc/inittab` and
+the custom startup hook. The web page survives while the controller and scripts
+it calls are absent. Native mining remains held by the missing launcher, and
+SSH may need to be enabled again using the installer’s stock maintenance flow.
+This is recoverable over SSH on the supported base; no firmware write is needed.
+
+Use **Back up & repair KD BOX XBT**. Surviving private settings remain protected.
+If the private configuration was erased, repair creates a new persisted recovery
+pause before provisioning, holds the mining processes with full cooling, and
+installs defaults. A completely absent native pool list is initialized empty;
+existing pool files are never replaced by this initialization. Successful repair
+requires readback of the recovery pause. Add/check pools, algorithm, Wi-Fi and
+cooling, inspect the hardware, then explicitly resume. Repair cannot know whether
+the reset erased a previous safety stop and must not silently start hashing.
+
+Avoid legacy factory reset. The dashboard warns before original maintenance and
+shows recovery instructions when its controller is unreachable. These are user
+interface mitigations, not a block on the stock HTTP reset endpoint. Automatically
+recreating credentials or silently restoring mining from a second hidden copy
+would defeat the owner’s reset intent and could discard fault context. Keep a
+private off-device backup. The dashboard’s **Factory reset — keep the mod** action clears owner settings
+and restores factory credentials using a persisted journal. It retains the mod
+and genuine fault records, then reboots for fresh owner setup.
+
+The 2026-11-13 recovery test on one original KD BOX / MCB_V5_4 confirmed this
+failure mode after an owner-initiated legacy reset. Repair over SSH restored the
+controller, XBT selection and an empty readable pool list, with a persisted
+recovery pause. Password records matched the post-reset snapshot; no firmware
+write, reboot or native management restart was needed. The installer then
+recognized the working build. Desktop/mobile checks covered offline guidance,
+reconnection and the maintenance warning. Mining was left paused; this test
+does not establish post-reset hashing or accepted shares.
+
 Installation success confirms the identified dashboard, including while stock fan
 calibration is in progress. It does not assert mining or accepted shares. Supervise
 startup separately and verify all chip temperatures and pool acceptance.
@@ -177,3 +213,103 @@ The test host widened permissions under its home folder after creation. Test
 snapshots were secured outside that folder and the final installer additionally
 checks completed snapshot permissions before application writes. The documented
 `KDBOX_XBT_BACKUP_DIR` override was exercised with that private folder.
+
+## Persistent recovery launcher and setup pauses
+
+New installs and application updates migrate the mining boot entry to
+`/root/kdbox-xbt-recovery.sh mining`. The startup hook also starts its singleton
+`watch` mode. This small script is outside the partition erased by stock 2.2.1’s
+factory reset; on the pinned model/board/base it keeps SSH available. If the
+runtime is missing it holds the native supervisor/engine and commands full
+cooling. Provisioning, authentication, thermal checks and the persisted pause are
+still enforced by the regular launcher/controller. No credential copy or automatic
+configuration restoration is embedded in the recovery script.
+
+Schema 7 private backups include this launcher. Schema 3–6 remain accepted with
+their original allowlists. Updates back up the old boot files, stage replacements,
+verify the deliberate boot migration separately from protected settings, and
+restore the previous application/boot files on verification failure. A stock
+firmware reflash can overwrite the recovery launcher; it is not firmware recovery.
+
+Persisted pauses report their kind. Only an exact known **pool-setup** record
+(including an older record with the same exact setup reason) is eligible for
+automatic resume. A valid saved pool, managed configuration and absence of
+performance, network or mining-reset journals are required. Missing/corrupt records,
+explicit faults, firmware/algorithm constraints and inspection pauses block it.
+The stop record is checked again before clearing. A failed automatic start becomes
+an inspection-required fault, never a repeated retry loop.
+
+**Factory reset — keep the mod** is authenticated and requires typing
+**FACTORY RESET**. This deliberately clears personalization, including passwords,
+network profiles, pools, cloud credentials, labels, tuning and history. Both login
+passwords return to the documented stock defaults. SSH authorized keys are removed;
+native RS256 signing keys are replaced and mod sessions are invalidated. The native
+settings partition is cleared except for the application and its reset/fault state.
+Defaults are rebuilt from the pinned device templates and the defined mod policy.
+Known root credential/history caches and network overrides are removed too.
+
+Vendor writers are held during the erase and restarted afterward to discard their
+cached state. Partial credential provisioning retains a private fallback only
+until reset completion, allowing either the old or new native login to recover
+from an interrupted reset; no old password remains after successful completion.
+Genuine/unknown faults stay latched. Benign setup/recovery/update pauses become a
+fresh owner-setup pause after the explicitly confirmed owner reset succeeds.
+
+The owner reset uses a version-2 journal. A failed/ambiguous erase requires an
+explicit retry. Reboot is requested once; a changed boot identity and completed
+factory credential provisioning are required before the journal is removed.
+Wi-Fi disconnects and the IP may change: reconnect by Ethernet and discovery.
+Previously accepted version-1 mining-only journals remain non-destructive and
+are never silently upgraded into owner-data erasure.
+
+This is managed-state cleanup, not secure flash erasure, a full OS reimage or a
+remote-cloud-account unlink. Off-device backup copies remain under owner control.
+
+### Earlier mining-only reset validation — 2026-11-13
+
+Before the owner-reset correction, on the recovered, already-empty test unit, the authenticated dashboard mining
+reset restored the defined defaults and completed its journal while retaining the
+original recovery record byte for byte. Password and network records remained
+unchanged. Browser checks covered confirmation, setup-pause wording, hidden
+manual resume for setup, retained inspection controls for faults and mobile layout.
+A supervised reboot then returned SSH, the controller and its watchdog through
+the new startup wiring, preserving the protected records and recovery pause.
+Mining was not resumed. Automatic pool startup, changed/corrupt stops, pending
+adjustments, failed startup and interrupted/failed reset cases were checked with
+automated native-service fixtures; this session did not claim live accepted shares
+for an automatic pool resume or repeat a destructive factory reset on the unit.
+
+### Full owner-reset validation — 2026-11-13
+
+The full factory reset was exercised through the live dashboard on the original
+KD BOX / MCB_V5_4 at 192.168.86.203, stock 2.2.1. The test seeded non-default web
+and SSH passwords, an accepted SSH authorized key, an unreachable test pool,
+an inactive saved Wi-Fi profile, persistent static-IP/DNS configuration, cloud
+and device-label markers, tuning preferences, notes and history. Mining stayed
+held during preparation. Static configuration files were seeded without changing
+the active Ethernet link before the reset.
+
+After the confirmed reset and a verified new boot, both factory passwords worked;
+the test passwords, SSH key and old mod session were rejected. The pools and owner
+markers were absent, DHCP/automatic DNS were enabled, Wi-Fi was disabled with no
+saved connection, cloud credentials were empty, and tuning returned to 740 MHz /
+430 mV, 75°C, Automatic performance off and a 740 MHz initial clock ceiling.
+The mod, watchdog and persistent recovery launcher remained operational. Both
+HTTP ports served the expected assets; desktop/mobile checks covered factory
+login, fresh pool/network setup and automatic setup-pause guidance. The installer
+recognized the exact running build as Already installed. The miner was left locked,
+with no configured pool and no hashing, ready for owner setup.
+
+The first live pass exposed stock minerd restoring its private signing key from
+`/root/settings/key.pem` at startup. Factory reset now rotates both the persistent
+source templates and runtime signing keys; a regression test covers this behavior.
+The corrected live run verified that old JWT signatures matched the old key but
+failed against the new key, and fresh login tokens verified against the new key.
+Stock read-only debug responses are not an authentication/revocation test. The
+mod's old authenticated session was checked separately and rejected with HTTP 401.
+
+Automated filesystem/native-service fixtures additionally cover genuine fault
+retention, partial failures, no automatic replay of ambiguous erases, and reboot
+identity. This finite test does not establish secure flash erasure or qualify
+other hardware. Private recovery snapshots and test evidence remain off-device;
+temporary test credentials and client keys are removed after verification.

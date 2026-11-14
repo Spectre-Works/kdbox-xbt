@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,8 +31,22 @@ const defaultAlgorithm = 1 // Bitcoin (XBT), called blake2b(SC) by stock firmwar
 func (c *Controller) algorithmPath() string { return filepath.Join(c.dir, "algorithm.json") }
 
 func (c *Controller) resumeMining() error {
+	return c.resumeMiningFromPause(nil)
+}
+
+func (c *Controller) resumeMiningFromPause(expected []byte) error {
 	if !c.halted {
 		return nil
+	}
+	if _, err := os.Stat(filepath.Join(c.dir, "mining-reset.json")); !os.IsNotExist(err) {
+		return errors.New("finish the settings reset before resuming")
+	}
+	_, current, err := c.readPause()
+	if err != nil {
+		return err
+	}
+	if expected != nil && !bytes.Equal(current, expected) {
+		return errors.New("pause changed; inspection required")
 	}
 	if c.pending != nil {
 		if err := c.rollback("Recovered the interrupted automatic adjustment"); err != nil {
@@ -46,10 +61,17 @@ func (c *Controller) resumeMining() error {
 	if err := c.apply(c.approved); err != nil {
 		return err
 	}
+	if expected != nil {
+		_, current, err = c.readPause()
+		if err != nil || !bytes.Equal(current, expected) {
+			return errors.New("pause changed; inspection required")
+		}
+	}
 	if err := os.Remove(filepath.Join(c.dir, "halted.json")); err != nil {
 		return err
 	}
 	c.halted = false
+	c.autoResumeBlocked = false
 	c.lastGood = time.Now()
 	c.message = "Managed settings restored"
 	if err := c.reapplyAlgorithm(); err != nil {

@@ -41,6 +41,8 @@ def payload_fixture(root):
 
 def backup_fixture(root, version=BACKUP_SCHEMA):
     manifest = {p: {'absent': True} for p in BACKUP_PATHS}
+    if version < 7:
+        del manifest['/root/kdbox-xbt-recovery.sh']
     if version < 6:
         for name in FAVICON_BACKUP_PATHS:
             del manifest[name]
@@ -136,7 +138,7 @@ class RecoveryValidation(unittest.TestCase):
             root = Path(folder)
             identity, manifest = backup_fixture(root)
             self.assertEqual(validate_backup(root, identity, manifest), BACKUP_SCHEMA)
-            for version in (None, 1, 2, 7, True):
+            for version in (None, 1, 2, 8, True):
                 with self.subTest(version=version), self.assertRaises(RuntimeError):
                     validate_backup(root, {'manifest_version': version}, manifest)
 

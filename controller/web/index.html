@@ -6,9 +6,9 @@
   <title>KD BOX Control · SPECTRE WORKS</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-  <link rel="stylesheet" href="/style.css?v=sw-8">
-  <script defer src="/app.js?v=sw-11"></script>
-  <script defer src="/settings.js?v=sw-3"></script>
+  <link rel="stylesheet" href="/style.css?v=sw-9">
+  <script defer src="/app.js?v=sw-14"></script>
+  <script defer src="/settings.js?v=sw-5"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -49,6 +49,19 @@
         </a>
       </div>
     </div>
+
+    <section id="factory-reset-progress" class="card" role="status" hidden>
+      <h2>Factory reset &amp; reconnection</h2>
+      <p>The miner is clearing owner settings and restarting. Wi-Fi will be disconnected and its IP may change. Reconnect with Ethernet, then use your router or the KD BOX XBT Installer to find it.</p>
+      <p>After completion, unlock with <strong>123456789</strong> and set up your new network and pool. The SSH root password returns to <code>!@#$%123</code>. Old dashboard sessions and SSH authorized keys are invalidated.</p>
+    </section>
+
+    <section id="controller-recovery" class="card" role="status" hidden>
+      <h2>Controller unavailable</h2>
+      <p>The dashboard page loaded, but the controller is not responding. Allow a few minutes after a restart and check the miner’s network connection.</p>
+      <p>If you used the original factory reset or reflashed stock firmware, launch the KD BOX XBT Installer and choose <strong>Back up &amp; repair KD BOX XBT</strong>. A factory reset erases the controller and saved settings while this page can remain.</p>
+      <a class="text-link" href="https://github.com/Spectre-Works/kdbox-xbt#backups-and-recovery" target="_blank" rel="noopener noreferrer">Recovery instructions ↗</a>
+    </section>
 
     <section data-page="overview" class="page" aria-label="Overview">
       <dl class="metrics" aria-label="Live mining metrics">
@@ -267,8 +280,15 @@
           <p>A restart briefly interrupts mining. Automatic performance recovers interrupted adjustments on startup.</p>
           <button id="reboot" class="button secondary" type="button" data-requires-unlock disabled>Restart miner</button>
           <details>
+            <summary>Factory reset — keep the mod</summary>
+            <p><strong>Erase this owner’s settings.</strong> This removes pools, saved Wi-Fi networks, static IP/DNS settings, cloud credentials, device labels, tuning preferences and history. Dashboard and SSH passwords return to their factory defaults, and SSH authorized keys are removed.</p>
+            <p>The mod stays installed. Bitcoin (XBT), 740 MHz / 430 mV, a 75°C hottest-chip limit and Automatic performance off are restored. Genuine safety faults remain latched.</p>
+            <p><strong>Wi-Fi disconnects and the miner reboots.</strong> Reconnect over Ethernet using your router or installer discovery; its IP may change. Default dashboard password: <strong>123456789</strong>. Default SSH root password: <code>!@#$%123</code>.</p>
+            <button id="factory-reset" class="button secondary" type="button" data-requires-unlock disabled>Factory reset…</button>
+          </details>
+          <details>
             <summary>Original firmware maintenance</summary>
-            <p>The installer uses stock Goldshell 2.2.1. Firmware updates or a factory reset through the original interface can remove settings or SSH access.</p>
+            <p><strong>Do not use the original factory reset to reset this mod.</strong> It erases the controller, settings and saved safety stops while leaving the dashboard page and startup hooks behind. Recovery requires the installer’s repair flow; erased settings need a matching private backup or manual reconfiguration. Firmware updates can also remove the mod or SSH access.</p>
             <a id="original-maintenance" href="/legacy.html#/system" target="_blank" rel="noopener" class="text-link">Open original maintenance <span aria-hidden="true">↗</span></a>
           </details>
           <details>
@@ -296,14 +316,14 @@
 
     <section data-page="diagnostics" class="page" aria-label="Diagnostics" hidden>
       <section id="recovery" class="card recovery-card" hidden>
-        <h2>Resume after a safety stop</h2>
+        <h2 id="resume-heading">Resume mining</h2>
         <p id="recovery-reason"></p>
-        <p>Check the fans, cooling, and pool setup. Resume when the cause is resolved.</p>
+        <p id="resume-help">Check the fans, cooling, and pool setup. Resume when the cause is resolved.</p>
         <button id="resume" class="button" type="button" data-requires-unlock disabled>Resume mining</button>
-        <details><summary>Recorded stop details</summary><pre id="recovery-raw" tabindex="0"></pre></details>
+        <details><summary>Recorded pause details</summary><pre id="recovery-raw" tabindex="0"></pre></details>
       </section>
       <div class="access-note" data-lock-note hidden>
-        <p>The saved safety stop is available here. Unlock controls to view stock reports and logs.</p>
+        <p>The saved pause or safety-stop report is available here. Unlock controls to view stock reports and logs.</p>
       </div>
       <section class="card">
         <h2>Device reports</h2>
@@ -311,7 +331,7 @@
           <div class="report-toolbar">
             <label for="diagnostic-kind">Report
               <select id="diagnostic-kind">
-                <option value="safety-stop">Safety stop</option>
+                <option value="safety-stop">Pause or safety-stop report</option>
                 <option value="icinfo">Live chip temperatures &amp; hardware errors</option>
                 <option value="minersyslog">Mining log</option>
                 <option value="monitorlog">Monitor log</option>

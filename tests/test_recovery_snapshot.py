@@ -155,7 +155,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(json.loads(writes['/usr/config/kdbox-xbt/config.json'])['admin_password'], '123456789')
         self.assertFalse(any('/user/updatepd' in call.args[0] for call in device.api.call_args_list))
         self.assertEqual(writes['/usr/config/kdbox-xbt/controller'], arm_header())
-        self.assertIn(b'/usr/config/kdbox-xbt/launcher.sh', writes['/etc/inittab'])
+        self.assertIn(b'/root/kdbox-xbt-recovery.sh mining', writes['/etc/inittab'])
         self.assertIn(b'/usr/config/kdbox-xbt/boot.sh', writes['/etc/init.d/S99kdbox-xbt'])
         self.assertIn('/usr/config/kdbox-xbt/approved.json', writes)
         self.assertEqual(json.loads(writes['/usr/config/kdbox-xbt/algorithm.json']), 1)

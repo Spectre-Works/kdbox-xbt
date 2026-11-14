@@ -23,6 +23,7 @@ let online = false;
 let lastStatus = null;
 let poolView = null;
 let hasConnected = false;
+let factoryResetExpected = false;
 let performanceEdited = false;
 let performanceSaveGeneration = 0;
 let coolingEdited = false;
@@ -219,13 +220,15 @@ $('login-form').onsubmit = async event => {
 };
 
 function renderControls() {
-  const available = unlocked && online && !busy;
+  const available = unlocked && online && !busy && !lastStatus?.reset_pending;
   document.querySelectorAll('[data-requires-unlock]').forEach(control => {
     control.disabled = !available;
   });
   document.querySelectorAll('[data-lock-note]').forEach(note => { note.hidden = unlocked; });
 
   const s = lastStatus;
+  $('factory-reset').disabled = !unlocked || !online || busy || (s?.reset_pending && !s?.reset_failed);
+  $('reboot').disabled = !unlocked || !online || busy;
   const pending = Boolean(s?.performance?.adjusting);
   const automatic = Boolean(s?.performance?.automatic);
   $('algo').disabled = !available || pending || automatic;
@@ -363,6 +366,9 @@ function stopReason(message) {
 
 function renderStatus() {
   const s = lastStatus;
+  const pauseKind = s?.pause_kind || (['No mining pools configured; add a pool before resuming', 'Mining settings reset; add a pool before mining resumes'].includes(s?.message) ? 'pool-setup'
+    : s?.message === 'Paused for a software update; review settings before resuming' ? 'software-update'
+    : s?.message === 'Recovered after missing installation settings; review configuration before resuming' ? 'recovery' : 'fault');
   const hasPools = poolView?.length;
   const hasTelemetry = online && s && !s.stale && !s.halted && s.device;
   const d = hasTelemetry ? s.device : {};
@@ -371,18 +377,34 @@ function renderStatus() {
   let detail = 'Waiting for the controller to respond.';
   let tone = 'neutral';
   let next = null;
-  if (!online && hasConnected) {
+  if (!online && hasConnected && factoryResetExpected) {
+    title = 'Factory reset reconnecting';
+    detail = 'Reconnect over Ethernet and find the miner using your router or installer. After completion, use the factory passwords; its IP may change.';
+    tone = 'warning';
+  } else if (!online && hasConnected) {
     title = 'Controller offline';
-    detail = 'Check the miner’s power and network connection.';
+    detail = 'Check the miner’s power and network connection. After a factory reset or stock reflash, use the installer’s repair flow.';
     tone = 'danger';
-  } else if (online && s.halted && s.message === 'No mining pools configured; add a pool before resuming') {
+    next = ['#controller-recovery', 'Recovery instructions'];
+  } else if (online && s.reset_pending) {
+    title = s.reset_failed ? 'Reset needs attention' : s.reset_owner ? 'Factory reset in progress' : 'Resetting mining settings';
+    detail = s.reset_failed ? 'Reset is incomplete and mining remains paused. Review the reset instructions, then explicitly retry Factory reset in System.'
+      : s.reset_owner ? 'Clearing owner settings and restoring factory passwords. Reconnect over Ethernet after the restart.' : 'Finishing the previously confirmed mining-settings reset. Mining remains paused.';
+    tone = s.reset_failed ? 'danger' : 'warning';
+    next = ['#system', 'View reset'];
+  } else if (online && s.halted && pauseKind === 'pool-setup' && s.automatic_resume !== false) {
     title = 'Waiting for pool setup';
-    detail = 'Add your mining pool, then resume mining. Mining is paused until setup is complete.';
+    detail = 'Add your mining pool. Mining starts automatically once the saved pool and managed settings are verified.';
     tone = 'warning';
     next = ['#mining', 'Set up a pool'];
-  } else if (online && s.halted && s.message === 'Paused for a software update; review settings before resuming') {
+  } else if (online && s.halted && pauseKind === 'software-update') {
     title = 'Software update paused mining';
     detail = 'Review your settings, pool and diagnostics, then resume mining when ready.';
+    tone = 'warning';
+    next = ['#mining', 'Review mining setup'];
+  } else if (online && s.halted && pauseKind === 'recovery') {
+    title = 'Recovery paused mining';
+    detail = 'Previous installation settings were missing. Check the algorithm, pool, cooling and network settings before resuming. Erased safety-stop history cannot be reconstructed.';
     tone = 'warning';
     next = ['#mining', 'Review mining setup'];
   } else if (online && s.halted) {
@@ -419,6 +441,7 @@ function renderStatus() {
     'Mining paused by a safety stop': 'Safety stop',
     'Waiting for pool setup': 'Pool setup',
     'Software update paused mining': 'Update paused',
+    'Recovery paused mining': 'Recovery paused',
     'Checking chip temperatures': 'Starting XBT',
     'No mining pools configured': 'No pool',
     'Waiting for mining telemetry': 'Telemetry delayed',
@@ -431,6 +454,17 @@ function renderStatus() {
   $('miner-state').dataset.tone = tone;
   $('connection').dataset.tone = online ? 'positive' : hasConnected ? 'danger' : 'neutral';
   setText('connection', online ? 'Controller online' : hasConnected ? 'Offline' : 'Connecting');
+  if (online && s?.reset_owner && !s.reset_failed) factoryResetExpected = true;
+  if (online && s?.reset_failed) factoryResetExpected = false;
+  if (online && factoryResetExpected && !s?.reset_pending) { factoryResetExpected = false; showFeedback('Factory reset complete. Unlock using 123456789, then configure your network and pool.', 'positive'); }
+  $('controller-recovery').hidden = online || !hasConnected || factoryResetExpected;
+  $('factory-reset-progress').hidden = !factoryResetExpected;
+  const setupPause = online && s.halted && pauseKind === 'pool-setup' && s.automatic_resume !== false;
+  $('resume').hidden = setupPause;
+  $('resume').disabled = !unlocked || !online || busy || !s?.halted || Boolean(s?.reset_pending);
+  setText('resume-heading', setupPause ? 'Waiting for a pool' : pauseKind === 'fault' && s?.halted ? 'Resume after inspection' : 'Resume mining');
+  setText('resume-help', setupPause ? 'Add a valid mining pool. Mining starts automatically; there is no safety stop to clear.'
+    : 'Check the stop or pause report, cooling and mining settings. Resume when inspection is complete.');
 
   setText('hash', typeof d.hashrate === 'number' ? formatNumber(d.hashrate / 1000, 1) + ' GH/s' : '—');
   setText('hash-average', typeof d.av_hashrate === 'number' ? 'Average ' + formatNumber(d.av_hashrate / 1000, 1) + ' GH/s' : 'Average unavailable');

@@ -12,7 +12,7 @@ class Compatibility(unittest.TestCase):
             updated = startup_config(original, version)
             self.assertIn('remount,ro /', updated)
             self.assertNotIn('respawn:fanctrl', updated)
-            self.assertIn('respawn:/usr/config/kdbox-xbt/launcher.sh', updated)
+            self.assertIn('respawn:/root/kdbox-xbt-recovery.sh mining', updated)
             self.assertEqual(startup_config(updated, version), updated)
             with self.assertRaises(RuntimeError): startup_config(original.replace('ttyAMA3::respawn:fanctrl', ''), version)
 

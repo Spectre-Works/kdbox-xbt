@@ -2,7 +2,7 @@
 
 **Rebuilt for Bitcoin.** Run XBT (Bitcoin BLAKE2b) mining on a compatible original
 Goldshell KD BOX, with the **KD BOX Control** dashboard and guided **KD BOX XBT Installer**.
-Software version **1.0.1** · Customer-installed SSH modification.
+Software version **1.0.2** · Customer-installed SSH modification.
 
 SPECTRE WORKS-owned software uses [Apache License 2.0](LICENSE); retained upstream
 code keeps its [MIT notice](licenses/upstream-MIT.txt). Modified redistributions
@@ -63,9 +63,9 @@ for installation. [Firmware evidence](docs/firmware-compatibility.md)
 
 ## 2. Open the installer
 
-Download **[KDBoxXBT-1.0.1.zip](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.1/KDBoxXBT-1.0.1.zip)**
-and **[SHA256SUMS.txt](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.1/SHA256SUMS.txt)**
-from the [1.0.1 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0.1).
+Download **[KDBoxXBT-1.0.2.zip](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.2/KDBoxXBT-1.0.2.zip)**
+and **[SHA256SUMS.txt](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.2/SHA256SUMS.txt)**
+from the [1.0.2 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0.2).
 Verify the ZIP checksum before opening the installer.
 
 The product ZIP includes the prebuilt ARM controller and editable installer source.
@@ -118,7 +118,7 @@ missing host utilities or no graphical browser can need manual setup.
 A complete installation is compared with the package using its full Git commit,
 version, modified-build flag and controller SHA-256. An exact match opens the
 **Already installed** dashboard/recovery flow. A different build offers
-**Back up & update KD BOX XBT**, including when both builds report version 1.0.1.
+**Back up & update KD BOX XBT**, including when both builds report version 1.0.2.
 The update review shows both revisions. Updates preserve passwords, pools,
 algorithm, cooling, tuning and existing safety stops. Mining pauses for the update
 and remains paused for inspection; the installer does not resume it automatically.
@@ -133,7 +133,7 @@ New installations select Bitcoin (XBT); repairs retain the saved algorithm choic
 When installation switches a miner from KDA to XBT, its old KDA pools are included
 in the private backup and cleared before XBT is applied. Existing XBT pools are
 retained. A miner with no configured pools waits for pool setup with mining paused;
-add an XBT pool and resume when ready. The installer never silently resumes a safety-stopped miner.
+add an XBT pool and mining starts automatically after verification. The installer never silently resumes a safety-stopped miner.
 
 If installation stops after writes began, **do not reboot or blindly retry**.
 Keep the reported backup path and follow [recovery guidance](docs/installation-handoff.md).
@@ -160,6 +160,21 @@ Internet; the miner's management HTTP is unencrypted.
 
 ## Backups and recovery
 
+**Do not use the original maintenance UI’s factory reset to reset the mod.**
+On stock 2.2.1 it erases the controller and private settings partition while
+leaving this dashboard page and startup hooks behind. The page can load with
+**Controller offline**. Pools, Wi-Fi details and saved safety-stop history can
+also be lost; a factory reset is not an uninstall or a rollback.
+
+If this happens, use the miner’s current IP from your router, launch a complete
+installer package, connect with the current stock dashboard password, and choose
+**Back up & repair KD BOX XBT**. The installer can start SSH again on stock 2.2.1.
+When private mod settings are missing, repair provisions the documented defaults
+and leaves mining **Recovery paused** for inspection. Review the algorithm, pools,
+network and cooling before resuming. Repair cannot reconstruct erased settings
+or stop history; recover those only from a matching private backup when available.
+Do not flash newer firmware to resolve this condition.
+
 Private application snapshots are saved automatically under
 `~/KDBoxXBT/backups/` (your user profile on Windows). Keep them on this computer,
 with access limited to your account; on Windows check the folder's user ACLs.
@@ -183,12 +198,12 @@ headroom. The learned spike reserve is half its original amount, capped at
 setting while preserving raw thermal protection and any active boost. Both fan
 percentages/RPMs and live clock/voltage appear on Overview. The **Mining session** row shows continuous time since the last return to Mining active; it
 is tracked by the controller and survives browser refreshes. The footer shows
-version **1.0.1** followed by the short source commit; include both in issue reports.
+version **1.0.2** followed by the short source commit; include both in issue reports.
 Hashrate history offers Auto, 1h, 3h,
 6h, 12h and 24h views. [Cooling details](docs/cooling-control.md)
 
 An unlocked dashboard can remove any saved pool, including the last one. Removing
-the last pool pauses mining until a pool is added and mining is resumed. Pool
+the last pool creates a setup pause; adding a valid pool starts mining automatically. Pool
 changes do not clear an existing safety stop.
 
 The unlocked **Network** page shows the connected Wi-Fi network, its IP address
@@ -213,7 +228,7 @@ bounds retained data, requests and logs for extended operation.
 
 The original maintenance page remains at `/legacy.html#/system`. Avoid firmware
 uploads or factory resets as casual troubleshooting. The fork uses
-`/usr/config/kdbox-xbt` and schema-6 backups, with complete schema-3/4/5 backups from
+`/usr/config/kdbox-xbt` and schema-6 or schema-7 backups, with complete schema-3/4/5 backups from
 this fork also accepted. Evidence from one unit or finite test periods is not
 certification or a guarantee for other hardware.
 
@@ -293,6 +308,7 @@ the step that failed, and a redacted error message. Do not include passwords,
 session URLs/tokens, private snapshots, payout details or raw configuration.
 Limited DIY support does not include guaranteed recovery or response times.
 
+- [1.0.2 release notes](docs/release-1.0.2.md)
 - [1.0.1 release notes](docs/release-1.0.1.md)
 - [1.0 release notes](docs/release-1.0.md)
 - [First-install validation and recovery](docs/installation-handoff.md)
@@ -305,3 +321,36 @@ Limited DIY support does not include guaranteed recovery or response times.
 
 This is a maintained derivative of the upstream application identified in [NOTICE](NOTICE).
 Fork-specific issues belong here, not with the upstream author or Goldshell.
+
+### Factory reset — keep the mod
+
+In **System → Factory reset — keep the mod**, type **FACTORY RESET** to confirm.
+This is an owner reset: it clears pools, saved Wi-Fi networks, static IP/DNS,
+local cloud credentials, device labels, clock qualifications/tuning preferences,
+mining history and recognized owner credential/cache files. Dashboard and SSH
+root passwords return to their stock 2.2.1 defaults: **123456789** and
+**!@#$%123**, respectively. SSH authorized keys are removed, native dashboard
+signing keys are rotated and mod sessions are invalidated. The mod stays installed.
+New defaults are XBT, 740 MHz / 430 mV, a 75°C limit and Automatic performance off.
+
+**Wi-Fi disconnects and the miner reboots.** Have Ethernet and router/installer
+discovery available before confirming; its IP can change. After the reset, unlock
+with the factory password and configure your new network and pool. Adding a valid
+pool resolves a normal setup pause automatically. Genuine/unknown safety faults
+remain latched for inspection; a reset cannot establish that hardware is safe.
+
+The reset is journaled. An interrupted or failed erase is never blindly repeated,
+and completion requires a verified new boot. An incomplete reset may already have
+changed credentials: use the current or factory credentials, inspect the failure
+and explicitly retry. It is not complete until the reset and restart succeed.
+
+This clears managed device personalization, not forensic data on flash. It does
+not erase copies on other computers, unlink remote cloud accounts, or restore
+arbitrary OS changes/custom files outside the managed locations. Keep separate
+control of private backups when transferring a unit.
+
+The small recovery launcher at `/root/kdbox-xbt-recovery.sh` survives the stock
+2.2.1 factory reset. It maintains SSH access and full cooling and holds mining if
+the runtime is missing. It contains no credentials and does not recreate erased
+configuration or resume mining. Use the installer’s repair flow. This does not
+protect against a stock firmware reflash replacing the root filesystem.

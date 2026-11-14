@@ -68,6 +68,7 @@ class FakeUpdateDevice:
         self.target=target
         self.files={path:b'original setting' for path in PROTECTED}
         self.files[RUNTIME+'/config.json']=b'{"admin_password":"owner"}'
+        self.files['/etc/inittab']=b'ttyAMA3::respawn:/usr/config/kdbox-xbt/launcher.sh\n'
         self.files[RUNTIME+'/controller']=b'old controller'
         for name in SCRIPTS:self.files[RUNTIME+'/'+name]=b'old script'
         for name in WEB_ASSETS:self.files[WEBROOT+'/'+name]=b'old asset'
@@ -99,7 +100,7 @@ class FakeUpdateDevice:
 
     def backup(self,destination):
         self.events.append('backup');destination=Path(destination);destination.mkdir()
-        manifest={}
+        manifest={'/root/kdbox-xbt-recovery.sh':{'absent':True}}
         for path,data in self.files.items():
             local=destination/path.lstrip('/');local.parent.mkdir(parents=True,exist_ok=True);local.write_bytes(data)
             manifest[path]={'mode':0o700 if path.startswith(RUNTIME+'/') else 0o644,
@@ -127,6 +128,7 @@ class FakeUpdateDevice:
         if args[0]=='mv':self.files[args[2]]=self.files.pop(args[1]);return ''
         if args[:2]==['kill','-KILL']:self.events.append('restart');return ''
         if args[:2]==['rm','-f']:return ''
+        if command.startswith('/root/kdbox-xbt-recovery.sh watch '):return 'recovery-started'
         raise AssertionError('unexpected command: '+command)
 
 
@@ -175,11 +177,12 @@ class UpdateExecution(unittest.TestCase):
                     update_device(d,root,'owner',root/'backup',lambda m:None,owner_authorized=True,target=target)
                 self.assertEqual(d.files[RUNTIME+'/controller'],(root/'build/kdbox-xbt-controller').read_bytes())
                 for path in PROTECTED:
-                    if path!=RUNTIME+'/halted.json':self.assertEqual(d.files[path],d.original[path])
+                    if path not in (RUNTIME+'/halted.json','/etc/inittab','/etc/init.d/S99kdbox-xbt'):self.assertEqual(d.files[path],d.original[path])
+                self.assertIn(b'/root/kdbox-xbt-recovery.sh mining',d.files['/etc/inittab'])
                 if stopped:self.assertEqual(d.files[RUNTIME+'/halted.json'],d.original[RUNTIME+'/halted.json'])
                 else:self.assertEqual(json.loads(d.files[RUNTIME+'/halted.json'])['reason'],UPDATE_PAUSE)
                 self.assertEqual(d.events,['backup','pause','restart'])
-                self.assertTrue(all(path not in PROTECTED for path in d.writes))
+                self.assertTrue(all(path not in PROTECTED for path in d.writes))  # Writes are staged; boot-file moves are verified.
 
     def test_refuses_changed_package_without_touching_device(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -388,6 +388,16 @@ $('reboot').onclick = () => {
     action(() => api('reboot', {confirm: 'REBOOT'}), 'Restart requested. The dashboard will reconnect when the miner is ready.');
   }
 };
+$('factory-reset').onclick = () => {
+  if (prompt('Erase owner settings and restore factory passwords? Wi-Fi, static IP/DNS, pools, cloud credentials, labels, tuning and history are removed. The miner reboots; reconnect using Ethernet and discovery. Dashboard password: 123456789. SSH: !@#$%123. Type FACTORY RESET to confirm.') === 'FACTORY RESET') {
+    action(async () => {
+      await api('factory-reset', {confirm: 'FACTORY RESET'});
+      factoryResetExpected = true;
+      try { localStorage.clear(); } catch {}
+      await refresh();
+    }, 'Factory reset started. Reconnect over Ethernet after the restart using the factory password.');
+  }
+};
 $('cloud-form').onsubmit = event => {
   event.preventDefault();
   action(() => api('cloud', {...cloudData, enable: $('cloud-enable').checked, userkey: $('cloud-key').value || null}), 'Cloud settings saved.');

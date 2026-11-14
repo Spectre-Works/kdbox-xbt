@@ -11,7 +11,7 @@ import time
 from urllib.parse import urlencode
 import paramiko
 
-from .payload import SCRIPTS, WEB_ASSETS, validate_payload
+from .payload import SCRIPTS, WEB_ASSETS, RECOVERY_PATH, RECOVERY_SCRIPT, validate_payload
 
 RUNTIME = '/usr/config/kdbox-xbt'
 WEBROOT = '/root/yottamc'
@@ -105,12 +105,13 @@ def controller_pid(device):
     return pid
 
 
-def pause_mining(device, pid):
+def pause_mining(device, pid=None):
     # All large transfers are staged first. Keep the watchdog running, and hold
     # the old controller only for the short atomic application-file replacement.
+    hold_controller = 'kill -STOP '+pid if pid is not None else ':'
     device.command(f'''set -e
 test -s {RUNTIME}/halted.json
-kill -STOP {pid}
+{hold_controller}
 for p in $(pidof xminerd); do
  case "$(readlink /proc/$p/exe)" in /usr/bin/xminerd) kill -STOP "$p";; *) exit 1;; esac
 done
@@ -154,6 +155,7 @@ def wait_build(device, target, protected):
 
 
 def update_device(device, root, password, destination, progress, *, owner_authorized=False, target=None):
+    from .device import startup_config, startup_hook
     device.update_started = False
     if owner_authorized is not True:
         raise RuntimeError('Confirm the software update before proceeding.')
@@ -170,7 +172,7 @@ def update_device(device, root, password, destination, progress, *, owner_author
     device.token = device.api('/user/login?'+urlencode({'username':'admin','password':password})).get('JWT Token')
     if not device.token:
         raise RuntimeError('Miner dashboard password was not accepted.')
-    check = f'test ! -e {RUNTIME}/pending.json && test ! -e {RUNTIME}/network-pending.json && echo clear'
+    check = f'test ! -e {RUNTIME}/pending.json && test ! -e {RUNTIME}/network-pending.json && test ! -e {RUNTIME}/mining-reset.json && echo clear'
     if device.command(check).strip() != 'clear':
         raise RuntimeError('Wait for the current performance or network adjustment before updating.')
     progress('Saving and verifying your private recovery backup…')
@@ -183,12 +185,18 @@ def update_device(device, root, password, destination, progress, *, owner_author
     files = {RUNTIME+'/controller': ((root/'build/kdbox-xbt-controller').read_bytes(), 0o700)}
     files.update({RUNTIME+'/'+name: ((root/'controller'/name).read_bytes(), 0o700) for name in SCRIPTS})
     files.update({WEBROOT+'/'+name: ((root/'controller/web'/name).read_bytes(), 0o644) for name in WEB_ASSETS})
+    files[RECOVERY_PATH] = ((root/'controller'/RECOVERY_SCRIPT).read_bytes(), 0o700)
+    files['/etc/inittab'] = (startup_config((backup/'etc/inittab').read_text(), '2.2.1').encode(), 0o644)
+    files['/etc/init.d/S99kdbox-xbt'] = (startup_hook(), 0o755)
+    verified_protected = dict(protected)
+    for path in ('/etc/inittab', '/etc/init.d/S99kdbox-xbt'):
+        verified_protected[path] = hashlib.sha256(files[path][0]).hexdigest()
     device.require_space(RUNTIME, sum(len(data) for p,(data,_) in files.items() if p.startswith(RUNTIME+'/'))+1024*1024)
     device.require_space(WEBROOT, sum(len(data) for p,(data,_) in files.items() if p.startswith(WEBROOT+'/'))+1024*1024)
     stages = {}; changed = []; paused = False; pid = None
     try:
         progress('Staging and verifying the new controller and dashboard…')
-        for directory in (RUNTIME, WEBROOT):
+        for directory in sorted({str(PurePosixPath(path).parent) for path in files}):
             stage = device.command('mktemp -d '+directory+'/.kdbox-update.XXXXXX').strip()
             if not re.fullmatch(re.escape(directory)+r'/\.kdbox-update\.[A-Za-z0-9]+', stage):
                 raise RuntimeError('Unexpected staging path.')
@@ -208,6 +216,7 @@ def update_device(device, root, password, destination, progress, *, owner_author
             device.write(pending_stop, record)
             device.command('ln '+shlex.quote(pending_stop)+' '+RUNTIME+'/halted.json')
             protected[RUNTIME+'/halted.json'] = hashlib.sha256(record).hexdigest()
+            verified_protected[RUNTIME+'/halted.json'] = protected[RUNTIME+'/halted.json']
         device.update_started = True
         paused = True
         pause_mining(device, pid)
@@ -218,7 +227,8 @@ def update_device(device, root, password, destination, progress, *, owner_author
             changed.append(path)
             device.command('mv '+shlex.quote(stages[str(PurePosixPath(path).parent)]+'/'+PurePosixPath(path).name)+' '+shlex.quote(path))
         device.command('kill -KILL '+pid)
-        wait_build(device, expected, protected)
+        wait_build(device, expected, verified_protected)
+        device.command(RECOVERY_PATH+' watch </dev/null >/tmp/kdbox-xbt-recovery.log 2>&1 & echo recovery-started')
         progress('Update verified. Settings and existing stops were retained; review the dashboard before resuming.')
         return backup
     except Exception:
