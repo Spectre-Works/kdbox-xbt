@@ -12,9 +12,9 @@ compare its entire SHA-256 value with the matching line in `SHA256SUMS.txt`:
 
 | OS | Product ZIP checksum command |
 | --- | --- |
-| Windows PowerShell | `Get-FileHash .\KDBoxXBT-1.0.2.zip -Algorithm SHA256` |
-| macOS Terminal | `shasum -a 256 KDBoxXBT-1.0.2.zip` |
-| Linux Terminal | `sha256sum KDBoxXBT-1.0.2.zip` |
+| Windows PowerShell | `Get-FileHash .\KDBoxXBT-1.0.3.zip -Algorithm SHA256` |
+| macOS Terminal | `shasum -a 256 KDBoxXBT-1.0.3.zip` |
+| Linux Terminal | `sha256sum KDBoxXBT-1.0.3.zip` |
 
 The same commands can check Goldshell's separately downloaded CPB: replace the
 ZIP filename with `firmware-Goldshell-KDBox-2.2.1.cpb` and compare with the pinned
@@ -126,9 +126,8 @@ with a redacted error and your OS/version. Never attach private backups or crede
 
 ## Private backup folder
 
-The default is `~/KDBoxXBT/backups/`. If a shared/synced home folder or host policy
-prevents private backups, choose an absolute path on a private local filesystem
-before launching. For example, on Linux/macOS:
+The default is `~/KDBoxXBT/backups/`. To choose another writable folder, set an
+absolute path before launching. For example, on Linux/macOS:
 
 ```sh
 KDBOX_XBT_BACKUP_DIR=/absolute/private/backups sh install.sh
@@ -136,10 +135,11 @@ KDBOX_XBT_BACKUP_DIR=/absolute/private/backups sh install.sh
 
 In Windows PowerShell, set `$env:KDBOX_XBT_BACKUP_DIR = 'C:\Users\YOUR-NAME\KDBox-private-backups'`
 then run `./install.ps1`. Set the same path on later launches to see those backups
-in the recovery list. Keep it outside source checkouts and shared/synced folders;
-on Windows verify user ACLs. On POSIX hosts the installer checks snapshot
-permissions both before collection and again before application writes. A host can
-change permissions later, so retain backups on storage you control.
+in the recovery list. The installer does not check folder/file privacy or require
+specific local permissions. It tries to set restrictive modes where supported;
+permission-setting failures are ignored without a warning or confirmation.
+Writable storage is sufficient. Backup completeness, file hashes and miner
+identity are still verified.
 
 ## Browser says “contacted” but never loads
 

@@ -4,7 +4,6 @@ import hashlib
 import http.client
 import ipaddress
 import json
-import os
 from pathlib import Path
 import shlex
 import socket
@@ -302,13 +301,18 @@ class Device:
             raise RuntimeError('Not enough free space on ' + path + '. No installation files were changed.')
 
     def backup(self, destination):
+        def set_mode(path, mode):
+            # Some writable filesystems do not support POSIX permissions.
+            # Permission settings are best effort and never gate a backup.
+            try:
+                path.chmod(mode)
+            except (OSError, NotImplementedError):
+                pass
+
         firmware = self.inspect()['firmware']
         destination = Path(destination)
         destination.mkdir(mode=0o700, parents=True, exist_ok=False)
-        destination.chmod(0o700)
-        if os.name != 'nt' and destination.stat().st_mode & 0o077:
-            destination.rmdir()
-            raise RuntimeError('The backup location did not enforce private permissions. No backup data was copied.')
+        set_mode(destination, 0o700)
         paths = BACKUP_PATHS
         manifest = {}
         with self.client.open_sftp() as s:
@@ -322,10 +326,10 @@ class Device:
                 local.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 parent = local.parent
                 while parent != destination:
-                    parent.chmod(0o700)
+                    set_mode(parent, 0o700)
                     parent = parent.parent
                 s.get(remote, str(local))
-                local.chmod(0o600)
+                set_mode(local, 0o600)
                 digest = hashlib.sha256(local.read_bytes()).hexdigest()
                 if self.command('sha256sum ' + shlex.quote(remote)).split()[0] != digest:
                     raise RuntimeError('Backup verification failed: the source changed or the transfer was incomplete. No installation files were changed. Retry after the miner is idle.')
@@ -333,12 +337,9 @@ class Device:
         identity={'manifest_version': BACKUP_SCHEMA, 'software_version': __version__, 'firmware':firmware, 'mac':self.command('cat /sys/class/net/eth0/address').strip(), 'host_key':base64.b64encode(self.client.get_transport().get_remote_server_key().asbytes()).decode()}
         validate_backup(destination, identity, manifest)
         (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
-        (destination / 'manifest.json').chmod(0o600)
+        set_mode(destination / 'manifest.json', 0o600)
         (destination / 'device.json').write_text(json.dumps(identity),encoding='utf-8')
-        (destination / 'device.json').chmod(0o600)
-        if os.name != 'nt' and any(path.stat().st_mode & 0o077
-                                  for path in (destination, *destination.rglob('*'))):
-            raise RuntimeError('Recovery backup permissions are not private. No application files were changed. Choose a private local folder with KDBOX_XBT_BACKUP_DIR; see the host setup guide.')
+        set_mode(destination / 'device.json', 0o600)
         return destination
 
     def restore(self, destination):

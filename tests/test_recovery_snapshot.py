@@ -60,19 +60,34 @@ class SnapshotTests(unittest.TestCase):
             self.assertEqual(device.command.call_count, 1)  # Read-only identity check only.
 
     @unittest.skipIf(os.name == 'nt', 'POSIX backup directory permissions')
-    def test_backup_stops_when_private_permissions_cannot_be_set(self):
+    def test_backup_accepts_filesystem_that_widens_permissions(self):
         device = self.device()
+        sftp = device.client.open_sftp.return_value.__enter__.return_value
+        sftp.stat.return_value = SimpleNamespace(st_mode=0o100644)
+        sftp.get.side_effect = lambda remote, local: Path(local).write_bytes(b'private')
         with tempfile.TemporaryDirectory() as folder:
             backup = Path(folder) / 'snapshot'
             chmod = Path.chmod
             with patch.object(Path, 'chmod', lambda path, mode: chmod(path, mode | 0o070)):
-                with self.assertRaisesRegex(RuntimeError, 'did not enforce private permissions'):
-                    device.backup(backup)
-            self.assertFalse(backup.exists())
-        device.client.open_sftp.assert_not_called()
+                self.assertEqual(device.backup(backup), backup)
+            self.assertEqual(backup.stat().st_mode & 0o777, 0o770)
+            self.assertEqual(set(json.loads((backup / 'manifest.json').read_text())), set(BACKUP_PATHS))
+
+    def test_backup_completes_when_chmod_is_unavailable_or_denied(self):
+        for error in (PermissionError('chmod denied'), OSError('unsupported filesystem'), NotImplementedError()):
+            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as folder:
+                device = self.device()
+                sftp = device.client.open_sftp.return_value.__enter__.return_value
+                sftp.stat.return_value = SimpleNamespace(st_mode=0o100644)
+                sftp.get.side_effect = lambda remote, local: Path(local).write_bytes(b'private')
+                backup = Path(folder) / 'snapshot'
+                with patch.object(Path, 'chmod', side_effect=error):
+                    self.assertEqual(device.backup(backup), backup)
+                self.assertEqual(set(json.loads((backup / 'manifest.json').read_text())), set(BACKUP_PATHS))
+                self.assertEqual(json.loads((backup / 'device.json').read_text())['manifest_version'], BACKUP_SCHEMA)
 
     @unittest.skipIf(os.name == 'nt', 'POSIX backup permissions')
-    def test_permissions_widened_during_backup_block_completion(self):
+    def test_permissions_widened_during_backup_do_not_block_completion(self):
         device = self.device()
         sftp = device.client.open_sftp.return_value.__enter__.return_value
         sftp.stat.return_value = SimpleNamespace(st_mode=0o100644)
@@ -85,8 +100,21 @@ class SnapshotTests(unittest.TestCase):
                 if path.name == 'device.json':
                     chmod(backup, 0o770)
             with patch.object(Path, 'chmod', widen):
-                with self.assertRaisesRegex(RuntimeError, 'permissions are not private'):
+                self.assertEqual(device.backup(backup), backup)
+            self.assertTrue((backup / 'manifest.json').is_file())
+            self.assertTrue((backup / 'device.json').is_file())
+
+    def test_corrupt_transfer_still_blocks_backup_when_chmod_fails(self):
+        device = self.device()
+        sftp = device.client.open_sftp.return_value.__enter__.return_value
+        sftp.stat.return_value = SimpleNamespace(st_mode=0o100644)
+        sftp.get.side_effect = lambda remote, local: Path(local).write_bytes(b'corrupt')
+        with tempfile.TemporaryDirectory() as folder:
+            backup = Path(folder) / 'snapshot'
+            with patch.object(Path, 'chmod', side_effect=PermissionError('chmod denied')):
+                with self.assertRaisesRegex(RuntimeError, 'Backup verification failed'):
                     device.backup(backup)
+            self.assertFalse((backup / 'manifest.json').exists())
 
     def test_backup_does_not_publish_manifest_with_missing_stock_files(self):
         device = self.device()

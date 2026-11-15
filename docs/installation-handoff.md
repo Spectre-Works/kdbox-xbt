@@ -57,7 +57,8 @@ architecture, reported and on-disk version, and pinned stock `minerd` hash. File
 transfers and installer API requests use the same SSH connection.
 
 Choose **Back up & install KD BOX XBT** once. Record the new backup directory.
-Verify that `manifest.json` and `device.json` exist and the backup is private.
+Verify that `manifest.json` and `device.json` exist. Local permission modes do not
+affect backup validity.
 New snapshots include managed assets, controller/scripts and configuration;
 they are not a full disk/bootloader/vendor-firmware image. Do not delete old backups.
 
@@ -210,9 +211,11 @@ passed. This is evidence from one unit and finite test windows; other hosts and
 units require their own checks. The published 1.0 package was not replaced.
 
 The test host widened permissions under its home folder after creation. Test
-snapshots were secured outside that folder and the final installer additionally
-checks completed snapshot permissions before application writes. The documented
-`KDBOX_XBT_BACKUP_DIR` override was exercised with that private folder.
+snapshots were secured outside that folder; that installer checked completed
+snapshot permissions before application writes. Those privacy checks have since
+been removed: current source accepts writable backup storage regardless of local
+permission modes. The documented `KDBOX_XBT_BACKUP_DIR` override was exercised
+with that folder.
 
 ## Persistent recovery launcher and setup pauses
 
