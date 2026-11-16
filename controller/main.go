@@ -330,8 +330,14 @@ func (c *Controller) safety() {
 		c.cooling = automaticCooling{}
 		c.fans(100)
 	}
-	if waitingForReadings && !c.checkFans(warming, 100) {
-		return
+	fansSpinningUp := false
+	if waitingForReadings {
+		var err error
+		fansSpinningUp, err = c.startup.checkFans(time.Now(), readFanRPM)
+		if err != nil {
+			c.stop(err.Error())
+			return
+		}
 	}
 	b, err := c.native("GET", "/mcb/cgminer?cgminercmd=devs", nil, false)
 	var v struct {
@@ -377,6 +383,10 @@ func (c *Controller) safety() {
 			chipReading = "unavailable"
 		}
 		c.stop(fmt.Sprintf("Temperature safety stop: average %.1f C (valid=%t, limit %.0f C), board %.1f C (valid=%t, limit 86 C), chip %s (limit %.0f C), sensor error=%v", temp, ok, averageLimit, board, boardOK, chipReading, peakLimit, peakErr))
+		return
+	}
+	if fansSpinningUp {
+		c.message = "XBT engine started; waiting for fans to reach safe RPM"
 		return
 	}
 	if waitingForReadings {

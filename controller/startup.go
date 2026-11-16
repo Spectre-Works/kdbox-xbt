@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,11 +14,15 @@ import (
 const (
 	stockFanCalibrationLimit = 4 * time.Minute
 	firstMiningReadingsLimit = 25 * time.Second
+	initialFanSpinupLimit    = 10 * time.Second
+	fullSpeedMinimumRPM      = 3000
 )
 
 type engineStartup struct {
 	calibrationUntil time.Time
 	readingsUntil    time.Time
+	fanSpinupUntil   time.Time
+	fansVerified     [2]bool
 }
 
 // Keep the longer calibration deadline separate from the time allowed to
@@ -100,12 +105,40 @@ func (s *engineStartup) advance(now time.Time, engineRunning bool) (bool, error)
 	if engineRunning {
 		s.calibrationUntil = time.Time{}
 		s.readingsUntil = now.Add(firstMiningReadingsLimit)
+		s.fanSpinupUntil = now.Add(initialFanSpinupLimit)
+		s.fansVerified = [2]bool{}
 		return false, nil
 	}
 	if !now.Before(s.calibrationUntil) {
 		return false, errors.New("XBT engine did not start before the stock fan calibration deadline")
 	}
 	return true, nil
+}
+
+// The stock supervisor can start XBT with its last calibration output at 10%.
+// Allow only initial acceleration to full output, measured from engine detection.
+// Each fan loses this allowance as soon as it proves healthy. A later stall or
+// unreadable sensor is a fault, even while chip sensors are still initializing.
+func (s *engineStartup) checkFans(now time.Time, read func(int) (int, error)) (bool, error) {
+	waiting := false
+	for i := range s.fansVerified {
+		rpm, err := read(i)
+		if err != nil || rpm < 0 {
+			return false, fmt.Errorf("Fan %d RPM unavailable during startup; mining stopped", i+1)
+		}
+		if rpm >= fullSpeedMinimumRPM {
+			s.fansVerified[i] = true
+			continue
+		}
+		if s.fansVerified[i] || !now.Before(s.fanSpinupUntil) {
+			return false, fmt.Errorf("Fan %d below %d RPM at 100%% output after startup spin-up; mining stopped", i+1, fullSpeedMinimumRPM)
+		}
+		waiting = true
+	}
+	if !waiting {
+		s.fanSpinupUntil = time.Time{}
+	}
+	return waiting, nil
 }
 
 func (s engineStartup) phase() string {

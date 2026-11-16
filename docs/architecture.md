@@ -26,10 +26,14 @@ restarts. Inspect the miner before using **Resume mining**.
 On stock 2.2.1, an XBT boot or resume gives the stock supervisor up to four
 minutes to calibrate the fans while neither mining engine is running. Resume
 clears the stock PID file if its recorded process is gone. As soon as a mining
-process appears, the controller commands full fan speed, checks the 3,000 RPM
-floor, and allows 25 seconds for the first valid temperature report. Readings
-that reach a thermal limit stop mining during that window. After the first
-valid report, the regular telemetry checks apply immediately.
+process appears, the controller commands full fan speed. Stock can leave the
+fans at 10% at that handoff, so each fan has up to ten seconds to reach the
+unchanged 3,000 RPM floor. This deadline does not move with polling; a fan that
+has already reached the floor loses its spin-up allowance immediately, and an
+unreadable RPM sensor stops startup. The independent 25-second deadline for
+the first valid temperature report still starts when the engine appears.
+Readings that reach a thermal limit stop mining during either window. Normal
+operation requires both fans and all temperature readings to be valid.
 
 During normal mining, automatic cooling uses a 75°C hottest-chip limit
 by default with a 30% duty minimum. The saved `chip_target` in the existing

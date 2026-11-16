@@ -73,21 +73,6 @@ Neither the dashboard nor SSH password is changed by installation.
   supply them; live chip readings require a running engine. Recovery snapshots
   are private application backups, not complete firmware/bootloader images.
 
-## Validation and limits
-
-The project records live installation, startup, cooling and accepted-share checks
-on one original KD BOX on stock 2.2.1. That unit's separate fixed-voltage test
-retained 755 MHz / 430 mV over a finite twenty-minute zero-error run; this does not
-raise the initial 740 MHz ceiling on other units or certify indefinite reliability.
-[Observed firmware results](firmware-compatibility.md) ·
-[Cooling results](cooling-control.md) · [Resource review](dashboard-endurance.md)
-
-Linux setup and Chromium desktop/mobile flows were exercised end to end.
-Windows/macOS have launchers and platform-specific setup guidance but were not
-natively executed in those Linux validation sessions. First launch needs Internet
-access for runtime/dependency downloads. Network isolation, host security policy
-and unsupported architectures may require the documented manual setup.
-
 **Use at your own risk.** Modification can interrupt mining, remove access,
 damage hardware or brick a miner. Safeguards and snapshots cannot guarantee
 recovery. SPECTRE WORKS provides limited DIY support via

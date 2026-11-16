@@ -171,15 +171,6 @@ private off-device backup. The dashboard’s **Factory reset — keep the mod** 
 and restores factory credentials using a persisted journal. It retains the mod
 and genuine fault records, then reboots for fresh owner setup.
 
-The 2026-11-13 recovery test on one original KD BOX / MCB_V5_4 confirmed this
-failure mode after an owner-initiated legacy reset. Repair over SSH restored the
-controller, XBT selection and an empty readable pool list, with a persisted
-recovery pause. Password records matched the post-reset snapshot; no firmware
-write, reboot or native management restart was needed. The installer then
-recognized the working build. Desktop/mobile checks covered offline guidance,
-reconnection and the maintenance warning. Mining was left paused; this test
-does not establish post-reset hashing or accepted shares.
-
 Installation success confirms the identified dashboard, including while stock fan
 calibration is in progress. It does not assert mining or accepted shares. Supervise
 startup separately and verify all chip temperatures and pool acceptance.
@@ -193,29 +184,6 @@ edit hashes to force a backup through the device/firmware checks.
 For installation trouble or guidance, use [GitHub Issues](https://github.com/Spectre-Works/kdbox-xbt/issues).
 SPECTRE WORKS offers limited DIY support on a use-at-your-own-risk basis; do not
 attach credentials, private snapshots or raw configuration.
-
-## 2026-11-12 live recovery validation
-
-The fixed installer source was exercised on one original MCB_V5_4 KD BOX after a
-stock-2.2.1 reflash retained its private mod files but removed the dashboard and
-startup hook. Live browser checks covered discovery, default SSH authentication,
-identity acceptance/cancellation, explicit repair, verified backup, repeat
-connection during calibration, overwrite prevention and recovery confirmation.
-A verified post-repair snapshot was then selected in the UI, restored and rebooted.
-
-All 16 chip readings and new accepted miner/DATUM shares returned before and after
-restore. Original password-file/configuration hashes, pool settings, algorithm,
-75°C cooling limit, disabled Automatic performance and 740 MHz / 430 mV operating
-point were preserved. Linux/Chromium desktop/mobile checks and 77 Python tests
-passed. This is evidence from one unit and finite test windows; other hosts and
-units require their own checks. The published 1.0 package was not replaced.
-
-The test host widened permissions under its home folder after creation. Test
-snapshots were secured outside that folder; that installer checked completed
-snapshot permissions before application writes. Those privacy checks have since
-been removed: current source accepts writable backup storage regardless of local
-permission modes. The documented `KDBOX_XBT_BACKUP_DIR` override was exercised
-with that folder.
 
 ## Persistent recovery launcher and setup pauses
 
@@ -267,52 +235,3 @@ are never silently upgraded into owner-data erasure.
 
 This is managed-state cleanup, not secure flash erasure, a full OS reimage or a
 remote-cloud-account unlink. Off-device backup copies remain under owner control.
-
-### Earlier mining-only reset validation — 2026-11-13
-
-Before the owner-reset correction, on the recovered, already-empty test unit, the authenticated dashboard mining
-reset restored the defined defaults and completed its journal while retaining the
-original recovery record byte for byte. Password and network records remained
-unchanged. Browser checks covered confirmation, setup-pause wording, hidden
-manual resume for setup, retained inspection controls for faults and mobile layout.
-A supervised reboot then returned SSH, the controller and its watchdog through
-the new startup wiring, preserving the protected records and recovery pause.
-Mining was not resumed. Automatic pool startup, changed/corrupt stops, pending
-adjustments, failed startup and interrupted/failed reset cases were checked with
-automated native-service fixtures; this session did not claim live accepted shares
-for an automatic pool resume or repeat a destructive factory reset on the unit.
-
-### Full owner-reset validation — 2026-11-13
-
-The full factory reset was exercised through the live dashboard on the original
-KD BOX / MCB_V5_4 at 192.168.86.203, stock 2.2.1. The test seeded non-default web
-and SSH passwords, an accepted SSH authorized key, an unreachable test pool,
-an inactive saved Wi-Fi profile, persistent static-IP/DNS configuration, cloud
-and device-label markers, tuning preferences, notes and history. Mining stayed
-held during preparation. Static configuration files were seeded without changing
-the active Ethernet link before the reset.
-
-After the confirmed reset and a verified new boot, both factory passwords worked;
-the test passwords, SSH key and old mod session were rejected. The pools and owner
-markers were absent, DHCP/automatic DNS were enabled, Wi-Fi was disabled with no
-saved connection, cloud credentials were empty, and tuning returned to 740 MHz /
-430 mV, 75°C, Automatic performance off and a 740 MHz initial clock ceiling.
-The mod, watchdog and persistent recovery launcher remained operational. Both
-HTTP ports served the expected assets; desktop/mobile checks covered factory
-login, fresh pool/network setup and automatic setup-pause guidance. The installer
-recognized the exact running build as Already installed. The miner was left locked,
-with no configured pool and no hashing, ready for owner setup.
-
-The first live pass exposed stock minerd restoring its private signing key from
-`/root/settings/key.pem` at startup. Factory reset now rotates both the persistent
-source templates and runtime signing keys; a regression test covers this behavior.
-The corrected live run verified that old JWT signatures matched the old key but
-failed against the new key, and fresh login tokens verified against the new key.
-Stock read-only debug responses are not an authentication/revocation test. The
-mod's old authenticated session was checked separately and rejected with HTTP 401.
-
-Automated filesystem/native-service fixtures additionally cover genuine fault
-retention, partial failures, no automatic replay of ambiguous erases, and reboot
-identity. This finite test does not establish secure flash erasure or qualify
-other hardware. Private recovery snapshots and test evidence remain off-device;
-temporary test credentials and client keys are removed after verification.

@@ -83,31 +83,3 @@ alter firmware as a substitute for diagnosing growth.
 Safety supervision and accepted work must still be monitored on the actual
 hardware. Memory use can fluctuate with Go/JavaScript garbage collection and
 request sizes; a short soak cannot certify long-term hardware reliability.
-
-## Live deployment and resource observation
-
-On the original KD BOX at `192.168.86.181`, the updated binary and all dashboard
-assets were verified against the build on ports 80 and 8088 after a controlled
-application pause. There was no firmware write or reboot. Normal Resume
-completed calibration and reached all 16 chip readings at 97.1 seconds.
-
-The actual browser verified **GitHub repository** / **SPECTRE WORKS Store** links,
-70→75°C slider autosave and cleared reserve, all-chip diagnostics, System and
-Network reads, both dashboard ports and a 390-pixel mobile layout. The owner’s
-automatic mode, qualified 755 MHz ceiling, 430 mV voltage, 30% normal-mode fan
-minimum and selected 75°C limit were preserved. At the clock ceiling, both
-fans remained at 100% as automatic mode requires.
-
-The supervised run lasted 397.3 seconds, including more than
-five minutes after telemetry was ready. It captured 144 complete chip reports;
-the highest chip was 71°C. The miner reported 37 accepted shares and DATUM
-35 at completion; their independently sampled totals can differ briefly.
-There was new accepted work at both after startup.
-
-During the observation, controller RSS was 9,328–10,200 KiB
-(first 9,328, last 10,200), with 10–10 threads and
-10–12 file descriptors (last 10). Temporary browser connections
-closed after the UI test; no descriptor or thread accumulation was observed.
-Original password/configuration/approved-setting hashes matched at completion.
-The temporary QA guard was disarmed and the miner was left hashing. These are
-short-soak observations, supplemented by the accelerated tests above.

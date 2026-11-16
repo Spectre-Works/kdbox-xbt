@@ -17,14 +17,11 @@ there is no customer confirmation, countdown, or temporary tuning mode.
 | Default-mode cooling | Existing hottest-chip control, 30% fan minimum |
 | Hottest-chip limit | Saved Cooling slider, 70–80°C, default 75°C |
 
-The pre-install backup on the test unit contained an 850 MHz / 430 mV power
-plan. A saved stock setting does not establish a vendor-qualified XBT operating
-point. The 740 MHz / 430 mV SPECTRE default is the repeatedly observed XBT point
-on this unit. New installations retain a 740 MHz automatic ceiling until factory
-qualification records a unit-specific limit. The factory search is bounded at
-850 MHz, the clock observed in that stock snapshot. That is a test bound, not a
-manufacturer-declared silicon maximum. Automatic voltage changes are disabled;
-430 mV is held constant throughout clock qualification and operation.
+The defined XBT default is 740 MHz / 430 mV. New installations retain a
+740 MHz automatic ceiling until individual qualification records a different
+limit. The factory search has an internal 850 MHz hard bound; this is a software
+policy, not a manufacturer-declared silicon maximum. Automatic voltage changes
+are disabled; 430 mV is held constant throughout qualification and operation.
 
 Temperature cannot establish electrical or PSU headroom. Clock and voltage
 therefore have independent hard bounds, and the controller holds voltage
@@ -79,10 +76,8 @@ fixed default automatically. Safety stops are retained.
 
 ## Factory clock qualification
 
-The [2026-11-11 live qualification](clock-characterization.md) retained 755 MHz
-at 430 mV on the test unit after a twenty-minute zero-error run; 760 MHz was
-rejected by the hardware-error check. This does not raise the initial ceiling
-for other units.
+Clock qualification is specific to each miner and operating conditions.
+Do not apply another unit’s measured ceiling globally; keep measurements private.
 
 The customer HTTP API cannot select a numeric clock or raise its ceiling.
 Factory administration uses an owner-only `clock-limit-request.json` in
@@ -118,5 +113,4 @@ the dashboard or SSH passwords. Turning automatic mode off restores 740 MHz /
 point in favor of that defined default. Invalid nonces never create a safety
 stop in either mode. Default mode does
 not use quality counters to gate mining. Thermal, fan, telemetry, watchdog and
-clock/voltage faults retain their safety stops. Historical qualification records
-retain the stricter error policy used during those tests.
+clock/voltage faults retain their safety stops.

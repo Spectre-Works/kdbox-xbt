@@ -66,23 +66,6 @@ Factory reset is a separate, explicitly confirmed destructive action.
 
 ## Validation and limits
 
-A full reset was tested on one original KD BOX / MCB_V5_4 on stock 2.2.1 after
-seeding non-default web/SSH passwords, an accepted SSH key, a test pool, inactive
-Wi-Fi credentials, persistent static-IP/DNS settings, cloud/device-label markers,
-tuning preferences and history. After reboot, factory credentials worked, test
-credentials and the old mod session were rejected, personalization was absent,
-and defaults were restored. The mod and recovery guard survived; both dashboard
-ports, desktop/mobile setup and read-only installer detection passed. The unit
-was left locked, without pools or hashing, ready for fresh setup.
-
-The live test exposed stock minerd restoring its private signing key from its
-startup template. Reset now rotates both the templates and runtime keys. The
-corrected run verified old JWT signatures against the old key and their rejection
-by the new key, plus valid signatures for fresh login tokens. Automated fixtures
-also cover retained faults, partial failures and reboot/journal behavior. These
-are finite observations, not certification of other hardware or indefinite operation.
-Native Windows/macOS execution was not part of the Linux validation session.
-
 **Use at your own risk.** Modification and reset can interrupt mining, remove
 access, damage hardware or brick a miner; backups and safeguards cannot guarantee
 recovery. SPECTRE WORKS offers limited DIY support through

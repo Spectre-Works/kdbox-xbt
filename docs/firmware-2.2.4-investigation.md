@@ -1,7 +1,7 @@
 # Why firmware 2.2.4 is rejected
 
-Investigation date: 2026-11-10. Offline firmware analysis and SSH preflight on
-one stock miner. Firmware installation and mining validation remain open.
+Offline comparison of official Goldshell firmware files. This analysis does not
+establish hardware compatibility or a supported firmware-modification procedure.
 
 ## Finding
 
@@ -77,7 +77,7 @@ used `llvm-objdump --triple=thumbv7-linux-gnueabi`.
 These offline observations corroborate the
 [upstream hardware report](https://github.com/Spectre-Works/kdbox-xbt/blob/5589e0604596722896266f7f0d565c1cc4484118/docs/firmware-compatibility.md),
 which records unavailable stock SSH access on 2.2.4 and a successful manual
-downgrade on its own test unit. That is not a downgrade test on our unit.
+downgrade on its own test unit. That does not establish a generally supported downgrade path.
 
 ## Firmware signatures
 
@@ -86,30 +86,3 @@ vendor compatibility public key. An offline test flipped one byte inside the
 2.2.4 IUS payload. Verification failed against the original signature, while
 the unmodified image verified. The project uses a live SSH application install
 on stock 2.2.1. [Stock firmware and the SSH installer](customer-firmware.md)
-
-## Live check and implications for QC
-
-The operator-designated miner reported `Goldshell-KDBox`, board `MCB_V5_4`,
-firmware `2.1.3`. Its authenticated maintenance request opened SSH, and an SSH
-session confirmed the identity and ARMv7 architecture. The live application
-snapshot passed checksum validation. On this unit, the root filesystem had
-about 3.4 MiB free and `/usr/config` had about 54 MiB free. Both passed the
-application installer's capacity checks.
-
-The ARM controller ran from temporary storage and passed startup preflight with
-temporary configuration and no pending trial. The stock startup and dashboard
-files and management process were verified after cleanup. The live system boots
-from `/dev/mmcblk0p1` and has separate configuration and backup partitions.
-The live updater and its launch script matched the pinned original 2.1.3
-image. Goldshell documents updates through the dashboard for this model.
-The presence of the local updater and a backup partition did not establish an
-independent recovery path. No flash, persistent application install, or reboot
-was performed. After testing, SSH returned to its initial closed state and the
-dashboard still reported stock 2.1.3.
-[Goldshell BOX Series Tutorial](https://goldshellhelp.zendesk.com/hc/en-us/articles/17608608063513-BOX-Series-Tutorial)
-
-After the operator updated the unit, its status identified the same model and
-board on 2.2.3. Ordinary dashboard authentication succeeded and the maintenance
-request returned HTTP 200. Port 22 continued to refuse connections. After the
-operator downgraded to stock 2.2.1, the same authenticated request opened port 22
-and a root SSH session confirmed the pinned stock management build.

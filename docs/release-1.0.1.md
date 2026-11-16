@@ -67,19 +67,6 @@ restores the previous application files while retaining the pause.
 
 ## Validation and operating limits
 
-The Wi-Fi implementation was checked on one original KD BOX on stock 2.2.1, on
-both dashboard ports and desktop/mobile layouts. Confirmed network name, IP,
-signal, notification expiry and lock privacy were verified against that unit.
-Connection/disconnection transitions and read failures were tested with simulated
-responses to avoid interrupting its live Wi-Fi connection. A supervised application
-deployment and resume returned all 16 chip temperatures and new accepted shares;
-passwords, saved network/mining settings and thermal safeguards were preserved.
-Fresh-install detection was also verified read-only on a never-modified stock
-2.2.1 miner with only the stock `index.html` present. Regression tests cover shared
-stock assets, genuine remnants, working controllers and the new-install wizard
-review. These are finite observations, not certification of other hardware or
-indefinite operation.
-
 Cooling defaults remain a 75°C hottest-chip limit and 30% normal fan minimum.
 Automatic performance remains off by default, with 740 MHz / 430 mV defaults.
 The critical thermal, fan and watchdog protections remain active.

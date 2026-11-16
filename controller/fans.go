@@ -354,7 +354,7 @@ func fanReadings() [2]*int {
 }
 
 func (c *Controller) checkFans(startup bool, percent int) bool {
-	minimumRPM := min(3000, max(1500, 3000*percent/100))
+	minimumRPM := min(fullSpeedMinimumRPM, max(1500, fullSpeedMinimumRPM*percent/100))
 	for i := 0; i < 2; i++ {
 		if !fanReady(func() (int, error) { return readFanRPM(i) }, minimumRPM, startup, time.Sleep) {
 			c.stop(fmt.Sprintf("Fan %d below %d RPM at %d%% output; mining stopped", i+1, minimumRPM, percent))
