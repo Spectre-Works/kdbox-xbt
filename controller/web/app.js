@@ -421,6 +421,10 @@ function renderStatus() {
     tone = 'warning';
     title = 'Checking chip temperatures';
     detail = 'The XBT engine has started. Waiting for its first valid readings.';
+  } else if (online && s.startup === 'stock-recovery') {
+    tone = 'warning';
+    title = 'Hashboard restarting';
+    detail = 'The stock miner is restoring its clock. Full cooling and safety checks remain active.';
   } else if (online && hasPools === 0) {
     title = 'No mining pools configured';
     detail = 'Add a pool and select the matching algorithm to start mining.';

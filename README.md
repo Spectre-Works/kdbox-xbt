@@ -2,7 +2,7 @@
 
 **Rebuilt for Bitcoin.** Run XBT (Bitcoin BLAKE2b) mining on a compatible original
 Goldshell KD BOX, with the **KD BOX Control** dashboard and guided **KD BOX XBT Installer**.
-Software version **1.0.4** · Customer-installed SSH modification.
+Software version **1.0.5** · Customer-installed SSH modification.
 
 SPECTRE WORKS-owned software uses [Apache License 2.0](LICENSE); retained upstream
 code keeps its [MIT notice](licenses/upstream-MIT.txt). Modified redistributions
@@ -63,9 +63,9 @@ for installation. [Firmware evidence](docs/firmware-compatibility.md)
 
 ## 2. Open the installer
 
-Download **[KDBoxXBT-1.0.4.zip](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.4/KDBoxXBT-1.0.4.zip)**
-and **[SHA256SUMS.txt](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.4/SHA256SUMS.txt)**
-from the [1.0.4 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0.4).
+Download **[KDBoxXBT-1.0.5.zip](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.5/KDBoxXBT-1.0.5.zip)**
+and **[SHA256SUMS.txt](https://github.com/Spectre-Works/kdbox-xbt/releases/download/v1.0.5/SHA256SUMS.txt)**
+from the [1.0.5 release](https://github.com/Spectre-Works/kdbox-xbt/releases/tag/v1.0.5).
 Verify the ZIP checksum before opening the installer.
 
 The product ZIP includes the prebuilt ARM controller and editable installer source.
@@ -118,7 +118,7 @@ missing host utilities or no graphical browser can need manual setup.
 A complete installation is compared with the package using its full Git commit,
 version, modified-build flag and controller SHA-256. An exact match opens the
 **Already installed** dashboard/recovery flow. A different build offers
-**Back up & update KD BOX XBT**, including when both builds report version 1.0.4.
+**Back up & update KD BOX XBT**, including when both builds report version 1.0.5.
 The update review shows both revisions. Updates preserve passwords, pools,
 algorithm, cooling, tuning and existing safety stops. Mining pauses for the update
 and remains paused for inspection; the installer does not resume it automatically.
@@ -199,7 +199,7 @@ headroom. The learned spike reserve is half its original amount, capped at
 setting while preserving raw thermal protection and any active boost. Both fan
 percentages/RPMs and live clock/voltage appear on Overview. The **Mining session** row shows continuous time since the last return to Mining active; it
 is tracked by the controller and survives browser refreshes. The footer shows
-version **1.0.4** followed by the short source commit; include both in issue reports.
+version **1.0.5** followed by the short source commit; include both in issue reports.
 Hashrate history offers Auto, 1h, 3h,
 6h, 12h and 24h views. [Cooling details](docs/cooling-control.md)
 
@@ -309,6 +309,7 @@ the step that failed, and a redacted error message. Do not include passwords,
 session URLs/tokens, private snapshots, payout details or raw configuration.
 Limited DIY support does not include guaranteed recovery or response times.
 
+- [1.0.5 release notes](docs/release-1.0.5.md)
 - [1.0.4 release notes](docs/release-1.0.4.md)
 - [1.0.3 release notes](docs/release-1.0.3.md)
 - [1.0.2 release notes](docs/release-1.0.2.md)

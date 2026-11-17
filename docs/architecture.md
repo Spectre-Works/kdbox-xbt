@@ -35,6 +35,26 @@ the first valid temperature report still starts when the engine appears.
 Readings that reach a thermal limit stop mining during either window. Normal
 operation requires both fans and all temperature readings to be valid.
 
+During stock 2.2.1 XBT operation, a newly appended `C0: gskb_reinit` event
+can authorize one bounded hashboard clock ramp. The event must have been observed
+within six seconds; existing log text cannot authorize recovery. Only a verified
+50 MHz-to-expected-clock reading at the unchanged expected voltage is eligible.
+The controller commands full fans, continues raw temperature/RPM/watchdog checks,
+and suspends automatic optimization. The clock must return to the expected value
+within a fixed 15 seconds from event observation. Repeated markers do not extend
+that deadline; a second recovery within a minute requires inspection instead.
+Unknown clock changes, higher clocks, wrong voltage and failed recovery retain
+safety stops. Missing clock/voltage readback retains its independent verification
+timeout. This allowance does not clear an existing stop or write tuning values.
+
+The log follower retains one file identity/offset and at most 512 bytes of partial
+line text; each read is capped at 16 KiB. Rotation, truncation, unreadable files or
+larger gaps discard recovery evidence. Completed recovery resets normal-control
+observations; an interrupted automatic qualification restores its previous
+settings rather than committing observations from across the restart. The UI
+shows **Hashboard restarting**, and the mining-session timer restarts only when
+normal active operation returns.
+
 During normal mining, automatic cooling uses a 75°C hottest-chip limit
 by default with a 30% duty minimum. The saved `chip_target` in the existing
 private configuration accepts 70–80°C through the Cooling panel. The slider
@@ -100,14 +120,24 @@ rounding, so the reported duty stays at or above the requested floor. Full-speed
 protection always writes through; it does not wait for the normal write check.
 [Goldshell temperature guidance](https://goldshellhelp.zendesk.com/hc/en-us/articles/10554697577497-Miner-s-normal-operating-temperature)
 
-Hashrate history bootstraps from the stock 288 one-minute samples, discarding
-initial zero padding while preserving later zero-rate periods. A separate
-collector extends the timestamped history to 1,440 samples without an open
-browser. `/tmp/kdbox-xbt-history.json` preserves it across controller restarts
-without periodic flash writes; a miner reboot clears this RAM-backed history.
-Missing samples remain gaps. Auto selects the smallest of 1h, 3h, 6h, 12h and 24h
-that fits the retained history. A manual range expires after five minutes, or
-on page reload.
+Hashrate history imports the stock backlog once, only while fresh telemetry
+confirms active mining. It discards initial zero padding and uses the live
+controller reading for the current minute, rather than repeatedly retimestamping
+the stock endpoint's last value. A separate collector checks state every three
+seconds and records one sample per minute. Known stops, startup and hashboard
+recovery record zero immediately in the current minute; unknown/stale telemetry
+leaves a gap. Positive-to-positive updates within a minute do not rewrite storage.
+
+The collector retains at most 1,440 samples for 24 hours without an open browser.
+`/tmp/kdbox-xbt-history.json` preserves them across controller restarts without
+periodic flash writes; a miner reboot clears this RAM-backed history. When a
+controller starts with a valid retained stop timestamp, it corrects the known
+stopped interval to zero, preserving samples before that interval. Missing or
+future stop timestamps do not authorize rewriting earlier history. Resuming
+mining cannot replay the stock backlog over retained zero-rate intervals.
+
+Auto selects the smallest of 1h, 3h, 6h, 12h and 24h that fits the retained
+history. A manual range expires after five minutes, or on page reload.
 
 An independent supervisor checks the controller heartbeat. On a stall it pauses
 the native mining supervisor, stops mining, forces the fans to full speed and

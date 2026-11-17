@@ -249,7 +249,7 @@ func (c *Controller) startPerformanceChange(next Tuning, verify bool, reason str
 	c.started = time.Time{}
 	c.deadline = time.Now().Add(stockFanCalibrationLimit + firstMiningReadingsLimit + 10*time.Minute)
 	var err error
-	if c.cfg.AutomaticTuning && !c.halted && c.device != nil && c.startup.phase() == "" && c.setClock != nil && next.Millivolts == c.approved.Millivolts {
+	if c.cfg.AutomaticTuning && !c.halted && c.device != nil && c.startup.phase() == "" && c.stockRecovery.until.IsZero() && c.setClock != nil && next.Millivolts == c.approved.Millivolts {
 		c.baselineHW, c.baselineNonces, c.baselineAccepted = number(c.device["hwerrors"]), number(c.device["nonces"]), number(c.device["accepted"])
 		err = c.setClock(next.Clock)
 		c.started = time.Now()

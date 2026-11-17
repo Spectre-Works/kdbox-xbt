@@ -38,5 +38,5 @@ func (s miningSession) status(now time.Time) miningSessionStatus {
 // Caller holds c.mu. Valid telemetry is published by the single safety worker.
 func (c *Controller) updateMiningSession(now time.Time) {
 	rate := number(c.device["hashrate"])
-	c.miningSession.observe(now, c.lastGood, !c.halted && c.startup.phase() == "" && rate > 0 && !math.IsNaN(rate) && !math.IsInf(rate, 0))
+	c.miningSession.observe(now, c.lastGood, !c.halted && c.stockRecovery.until.IsZero() && c.startup.phase() == "" && rate > 0 && !math.IsNaN(rate) && !math.IsInf(rate, 0))
 }

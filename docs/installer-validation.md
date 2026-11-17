@@ -45,3 +45,12 @@ backoff, counter resets, observation windows and the minimum clock floor.
 Invalid nonces never request a safety stop; automatic performance may reduce
 clock when error rates exceed its qualification policy. Thermal protection
 remains independent. Do not deliberately induce hardware faults for testing.
+
+## Native hashboard recovery
+
+Replay fresh native reinitialization events with low-to-expected clock ramps.
+Verify fixed timeout, full cooling, unchanged voltage/thermal/fan protections,
+stale/missing/rotated log rejection, repeated recovery limits, missing readback,
+and clocks outside the recovery envelope. Previously latched faults must stay
+latched. Test interrupted automatic qualification separately from established
+operation; recovery must not commit mixed observations or extend its deadline.

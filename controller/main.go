@@ -61,6 +61,7 @@ type Controller struct {
 	algorithmQueued                              bool
 	engineGrace                                  time.Time
 	startup                                      engineStartup
+	stockRecovery                                stockRecovery
 	cooling                                      automaticCooling
 	history                                      *hashrateHistory
 	miningSession                                miningSession
@@ -239,6 +240,7 @@ func (c *Controller) stop(reason string) {
 	c.miningSession = miningSession{}
 	c.cooling = automaticCooling{}
 	c.startup = engineStartup{}
+	c.stockRecovery.until = time.Time{}
 	c.message = reason
 	if saved, err := saveStop(filepath.Join(c.dir, "halted.json"), reason, c.device); err != nil {
 		log.Print("Cannot persist safety stop: ", err)
@@ -291,6 +293,9 @@ func (c *Controller) safety() {
 		}
 		c.tryResumePoolSetup()
 		return
+	}
+	if c.firmware == "2.2.1" && c.algorithm == 1 {
+		c.stockRecovery.observe(time.Now(), stockMinerLog)
 	}
 	if c.pending != nil && !c.deadline.IsZero() && time.Now().After(c.deadline) {
 		c.rejectPerformance("Automatic settings could not be verified; restored previous settings")
@@ -395,6 +400,40 @@ func (c *Controller) safety() {
 		c.message = "KD BOX safeguards active"
 	}
 	c.lastGood = time.Now()
+	if c.firmware == "2.2.1" && c.algorithm == 1 {
+		reported := Tuning{Clock: int(number(d["clock"])), Millivolts: int(number(d["voltage"])*1000 + 0.5)}
+		// The native restart can begin between the first log poll and the RPC.
+		// Refresh evidence before treating a newly observed low clock as a fault.
+		if hardwareVerified && reported.Clock < c.activeTuning().Clock && c.stockRecovery.until.IsZero() {
+			c.stockRecovery.observe(time.Now(), stockMinerLog)
+		}
+		waiting, completed, err := c.stockRecovery.check(time.Now(), c.activeTuning(), reported, hardwareVerified)
+		if err != nil {
+			c.stop(err.Error())
+			return
+		}
+		if waiting {
+			c.cooling = automaticCooling{percent: 100}
+			if err := c.fans(100); err != nil {
+				c.stop("Cannot set full cooling during stock hashboard recovery")
+				return
+			}
+			if !c.checkFans(true, 100) {
+				return
+			}
+			if !hardwareVerified {
+				c.performanceSafety(time.Now(), false)
+				if c.halted {
+					return
+				}
+			}
+			c.message = "Stock hashboard restarting; waiting for the managed clock"
+			return
+		}
+		if completed && c.finishStockRecovery() {
+			return
+		}
+	}
 	previousPercent := c.cooling.percent
 	percent := c.cooling.next(time.Now(), board, temp, peak, float64(c.cfg.coolingTarget()), averageLimit, peakLimit)
 	if c.cfg.AutomaticTuning {
@@ -513,7 +552,7 @@ func (c *Controller) handler(w http.ResponseWriter, r *http.Request) {
 		status := map[string]any{
 			"software":  softwareInfo(),
 			"algorithm": c.algorithm, "algorithm_queued": c.algorithmQueued,
-			"startup":        c.startup.phase(),
+			"startup":        c.startupPhase(),
 			"mining_session": c.miningSession.status(now),
 			"fan_rpm":        fanReadings(), "device": c.device, "approved": c.approved,
 			"fan_percent": fanPercentages(),
@@ -841,16 +880,25 @@ func main() {
 	}()
 	c.history = &hashrateHistory{path: "/tmp/kdbox-xbt-history.json"}
 	c.history.load(time.Now())
-	go func() {
-		for {
-			b, err := c.native("GET", "/cpb/hshistory", nil, false)
-			var values []float64
-			if err == nil && json.Unmarshal(b, &values) == nil {
-				if err := c.history.merge(time.Now(), values); err != nil {
-					log.Print("Cannot preserve hashrate history: ", err)
+	// A retained stop gives an authoritative interval to repair after an update.
+	if c.halted {
+		if _, raw, err := c.readPause(); err == nil {
+			var stopped struct {
+				At time.Time `json:"at"`
+			}
+			if json.Unmarshal(raw, &stopped) == nil {
+				if err := c.history.zeroSince(time.Now(), stopped.At); err != nil {
+					log.Print("Cannot correct stopped hashrate history: ", err)
 				}
 			}
-			time.Sleep(time.Minute)
+		}
+	}
+	go func() {
+		for {
+			if err := c.collectHistory(time.Now()); err != nil {
+				log.Print("Cannot preserve hashrate history: ", err)
+			}
+			time.Sleep(3 * time.Second)
 		}
 	}()
 	go func() {

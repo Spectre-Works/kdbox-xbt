@@ -29,6 +29,7 @@ type engineStartup struct {
 // initialize sensors once a hashing process is present.
 func (c *Controller) beginStockStartup(now time.Time) {
 	c.startup = engineStartup{}
+	c.stockRecovery = stockRecovery{}
 	c.miningSession = miningSession{}
 	c.cooling = automaticCooling{}
 	c.lastGood = time.Time{}

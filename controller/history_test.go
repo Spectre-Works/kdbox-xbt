@@ -2,6 +2,8 @@ package main
 
 import (
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 	"time"
@@ -68,5 +70,156 @@ func TestHistoryStorageIsBoundedForNinetyDaysAndIrregularSnapshots(t *testing.T)
 	h.prune(now)
 	if len(h.samples) > 1440 {
 		t.Fatal("irregular timestamps bypassed count cap")
+	}
+}
+
+func TestHistoryStopOverridesFrozenNativeRateAndSurvivesResume(t *testing.T) {
+	now := time.Now().Truncate(time.Minute)
+	requests := 0
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests++; w.Write([]byte(`[0,680000,690000,999999]`)) }))
+	defer backend.Close()
+	c := Controller{backend: backend.URL, client: backend.Client(), lastGood: now, history: &hashrateHistory{path: filepath.Join(t.TempDir(), "history.json")}, device: map[string]any{"hashrate": 700000.0}}
+	if err := c.collectHistory(now); err != nil {
+		t.Fatal(err)
+	}
+	v := c.history.snapshot(now)
+	if requests != 1 || len(v) != 3 || v[2].Rate != 700000 {
+		t.Fatal("native current bucket replaced live rate", v, requests)
+	}
+	c.halted = true
+	if err := c.collectHistory(now.Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.history.snapshot(now); got[len(got)-1].Rate != 0 {
+		t.Fatal("stop kept the last live rate", got)
+	}
+	for i := 1; i <= 3; i++ {
+		if err := c.collectHistory(now.Add(time.Duration(i) * time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if requests != 1 {
+		t.Fatal("stopped miner still read frozen native history")
+	}
+	restored := &hashrateHistory{path: c.history.path}
+	restored.load(now.Add(3 * time.Minute))
+	v = restored.snapshot(now.Add(3 * time.Minute))
+	for _, p := range v {
+		if p.At >= now.Unix() && p.Rate != 0 {
+			t.Fatal("stopped interval was not retained", v)
+		}
+	}
+	c.history = restored
+	c.halted = false
+	c.lastGood = now.Add(4 * time.Minute)
+	c.device["hashrate"] = 710000.0
+	if err := c.collectHistory(c.lastGood); err != nil {
+		t.Fatal(err)
+	}
+	v = c.history.snapshot(c.lastGood)
+	if v[len(v)-1].Rate != 710000 || requests != 1 {
+		t.Fatal("resume replayed native backlog", v, requests)
+	}
+	for _, p := range v {
+		if p.At >= now.Unix() && p.At < c.lastGood.Unix() && p.Rate != 0 {
+			t.Fatal("resume overwrote the stopped interval")
+		}
+	}
+}
+func TestHistoryUnknownTelemetryLeavesGapsAndStartupRecordsZero(t *testing.T) {
+	now := time.Now().Truncate(time.Minute)
+	c := Controller{lastGood: now, device: map[string]any{"hashrate": 700000.0}, history: &hashrateHistory{}}
+	c.history.record(now, 700000)
+	c.collectHistory(now.Add(time.Minute)) // Last device snapshot is stale.
+	if len(c.history.snapshot(now.Add(time.Minute))) != 1 {
+		t.Fatal("unknown telemetry invented activity")
+	}
+	c.startup.calibrationUntil = now.Add(3 * time.Minute)
+	c.collectHistory(now.Add(2 * time.Minute))
+	c.startup = engineStartup{}
+	c.stockRecovery.until = now.Add(4 * time.Minute)
+	c.collectHistory(now.Add(3 * time.Minute))
+	v := c.history.snapshot(now.Add(3 * time.Minute))
+	if len(v) != 3 || v[1].At-v[0].At != 120 || v[1].Rate != 0 || v[2].Rate != 0 {
+		t.Fatal("startup/recovery or missing telemetry was misrepresented", v)
+	}
+}
+func TestHistoryStopDuringBootstrapCannotSeedPhantomHashing(t *testing.T) {
+	now := time.Now()
+	c := Controller{history: &hashrateHistory{}, lastGood: now, device: map[string]any{"hashrate": 700000.0}}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c.mu.Lock()
+		c.halted = true
+		c.mu.Unlock()
+		w.Write([]byte(`[700000,700000,700000]`))
+	}))
+	defer backend.Close()
+	c.backend = backend.URL
+	c.client = backend.Client()
+	if err := c.collectHistory(now); err != nil {
+		t.Fatal(err)
+	}
+	v := c.history.snapshot(now)
+	if len(v) != 1 || v[0].Rate != 0 {
+		t.Fatal("bootstrap ignored a concurrent stop", v)
+	}
+}
+func TestHistoryRepairsOnlyKnownStoppedIntervalAndRemainsBounded(t *testing.T) {
+	now := time.Now().Truncate(time.Minute)
+	h := hashrateHistory{path: filepath.Join(t.TempDir(), "history.json")}
+	for i := -5; i <= 0; i++ {
+		h.record(now.Add(time.Duration(i)*time.Minute), 700000)
+	}
+	since := now.Add(-3*time.Minute + 20*time.Second)
+	if err := h.zeroSince(now, since); err != nil {
+		t.Fatal(err)
+	}
+	v := h.snapshot(now)
+	if len(v) != 6 {
+		t.Fatal(v)
+	}
+	for _, p := range v {
+		if p.At < since.Truncate(time.Minute).Unix() && p.Rate != 700000 {
+			t.Fatal("rewrote pre-stop mining")
+		}
+		if p.At >= since.Truncate(time.Minute).Unix() && p.Rate != 0 {
+			t.Fatal("frozen stopped history remained")
+		}
+	}
+	h.zeroSince(now, now.Add(time.Minute))
+	if len(h.snapshot(now)) != 6 {
+		t.Fatal("future stop rewrote history")
+	}
+	h.zeroSince(now, time.Time{})
+	if len(h.snapshot(now)) != 6 {
+		t.Fatal("missing stop timestamp rewrote history")
+	}
+	h.zeroSince(now, now.Add(-72*time.Hour))
+	v = h.snapshot(now)
+	if len(v) != 1440 || v[0].Rate != 0 || v[len(v)-1].Rate != 0 {
+		t.Fatal("repair exceeded retention bound", len(v))
+	}
+}
+func TestHistoryRecordKeepsMinuteCadenceAndZeroTransitions(t *testing.T) {
+	now := time.Now().Truncate(time.Minute)
+	h := hashrateHistory{}
+	h.record(now, 700000)
+	h.record(now.Add(3*time.Second), 710000)
+	if len(h.samples) != 1 || h.samples[0].Rate != 700000 {
+		t.Fatal("normal polling rewrote the minute sample")
+	}
+	h.record(now.Add(6*time.Second), 0)
+	if h.samples[0].Rate != 0 {
+		t.Fatal("stop waited for the next minute")
+	}
+	h.record(now.Add(9*time.Second), 720000)
+	if h.samples[0].Rate != 720000 {
+		t.Fatal("resume retained zero")
+	}
+	h.record(now.Add(time.Minute), math.NaN())
+	h.record(now.Add(time.Minute), math.Inf(1))
+	h.record(now.Add(time.Minute), -1)
+	if len(h.samples) != 1 {
+		t.Fatal("invalid sample accepted")
 	}
 }
